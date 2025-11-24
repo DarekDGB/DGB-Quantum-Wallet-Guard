@@ -5,7 +5,7 @@ from .decisions import Decision, DecisionResult
 
 class DecisionEngine:
     """
-    Core brain of DGB Quantum Wallet Guard.
+    Core brain of DGB Quantum Wallet Guard (Layer 5).
 
     v0.1: simple, transparent rules.
     Later we can plug AI / ML on top of this.
@@ -17,21 +17,25 @@ class DecisionEngine:
     def evaluate_transaction(self, ctx: RiskContext) -> DecisionResult:
         p = self.policy
 
-        # 1) Hard stop on CRITICAL or above max_allowed_risk
+        # 1) Hard stop on CRITICAL risk from Sentinel or ADN
         if ctx.sentinel_level == RiskLevel.CRITICAL or ctx.adn_level == RiskLevel.CRITICAL:
             return DecisionResult(
                 decision=Decision.BLOCK,
                 reason="Critical chain or node risk reported by Sentinel/ADN.",
             )
 
-        if ctx.sentinel_level.value > p.max_allowed_risk.value or ctx.adn_level.value > p.max_allowed_risk.value:
+        # 2) If risk is above wallet policy, delay tx
+        if (
+            ctx.sentinel_level.severity() > p.max_allowed_risk.severity()
+            or ctx.adn_level.severity() > p.max_allowed_risk.severity()
+        ):
             return DecisionResult(
                 decision=Decision.DELAY,
                 reason="Risk level exceeds wallet policy; transaction delayed.",
                 cooldown_seconds=p.cooldown_seconds_delay,
             )
 
-        # 2) Block full balance wipes if enabled
+        # 3) Block full balance wipes if enabled
         if p.block_full_balance_tx and ctx.wallet_balance > 0:
             ratio = ctx.tx_amount / ctx.wallet_balance
             if ratio >= 0.99:
@@ -40,11 +44,12 @@ class DecisionEngine:
                     reason="Attempt to send ~100% of wallet balance.",
                 )
 
-        # 3) Limit ratio based on risk level
+        # 4) Limit ratio based on risk level
         if ctx.wallet_balance > 0:
             ratio = ctx.tx_amount / ctx.wallet_balance
 
-            if ctx.sentinel_level in {RiskLevel.HIGH} or ctx.adn_level in {RiskLevel.HIGH}:
+            if ctx.sentinel_level == RiskLevel.HIGH or ctx.adn_level == RiskLevel.HIGH:
+                # High risk → use stricter ratio
                 if ratio > p.max_tx_ratio_high:
                     return DecisionResult(
                         decision=Decision.WARN,
@@ -53,6 +58,7 @@ class DecisionEngine:
                         suggested_limit=p.max_tx_ratio_high * ctx.wallet_balance,
                     )
             else:
+                # Normal or elevated risk
                 if ratio > p.max_tx_ratio_normal:
                     return DecisionResult(
                         decision=Decision.WARN,
@@ -61,7 +67,7 @@ class DecisionEngine:
                         suggested_limit=p.max_tx_ratio_normal * ctx.wallet_balance,
                     )
 
-        # 4) Extra auth for large amounts
+        # 5) Extra auth for large absolute amounts
         if ctx.tx_amount >= p.threshold_extra_auth:
             return DecisionResult(
                 decision=Decision.REQUIRE_EXTRA_AUTH,
@@ -70,7 +76,7 @@ class DecisionEngine:
                 require_second_factor=True,
             )
 
-        # 5) Behaviour / device checks (very simple for v0.1)
+        # 6) Behaviour / device checks (very simple for v0.1)
         if ctx.behaviour_score > 1.5 or not ctx.trusted_device:
             return DecisionResult(
                 decision=Decision.WARN,
@@ -78,7 +84,7 @@ class DecisionEngine:
                 cooldown_seconds=p.cooldown_seconds_warn,
             )
 
-        # 6) Default: allow
+        # 7) Default: allow
         return DecisionResult(
             decision=Decision.ALLOW,
             reason="No policy or risk rule violated.",
