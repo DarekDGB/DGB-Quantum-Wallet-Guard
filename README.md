@@ -2,22 +2,22 @@
 
 **DGB Quantum Wallet Guard** is a universal security engine and SDK for DigiByte wallets.  
 It connects to **Sentinel AI v2**, **DQSN**, and **ADN v2** to evaluate every transaction and enforce
-quantum‑aware rules, limits, cooldowns, warnings and blocks.
+quantum-aware rules, limits, cooldowns, warnings and blocks.
 
 ---
 
 ## 🚀 Purpose
 
-As DigiByte moves toward post‑quantum security, wallets must become intelligent and reactive.  
+As DigiByte moves toward post-quantum security, wallets must become intelligent and reactive.  
 DGB Quantum Wallet Guard provides a unified protection layer any DigiByte wallet can integrate with.
 
 This SDK ensures:
 
 - Transaction evaluation based on global + local risk  
-- Protection from quantum‑related anomalies  
-- Behavioural checks and full‑balance protection  
-- Cool‑downs, throttled sending, and forced confirmation steps  
-- Seamless connection to your Layer 1–4 system
+- Protection from quantum-related anomalies  
+- Behavioural checks and full-balance protection  
+- Cool-downs, throttled sending, and forced confirmation steps  
+- Seamless integration with Layers 1–4 of the Quantum Shield Network
 
 ---
 
@@ -31,18 +31,18 @@ DGB Quantum Wallet Guard integrates with the first four layers:
 4. **DGB Wallet Guardian** – personal wallet logic  
 5. **DGB Quantum Wallet Guard** – *universal SDK for all wallets*
 
-This repository implements Layer 5.
+This repository implements **Layer 5** of the DigiByte Quantum Shield Network.
 
 ---
 
 ## 📦 Features (v0.1 Roadmap)
 
 - `RiskContext` model (Sentinel/DQSN/ADN signals)  
-- `DecisionEngine` returning ALLOW / WARN / DELAY / BLOCK  
-- User‑policy rules (send limits, frequency, cooldowns)  
-- Behaviour model (normal tx size & patterns)  
+- `DecisionEngine` returning ALLOW / WARN / DELAY / BLOCK / REQUIRE_EXTRA_AUTH  
+- User-policy rules (send limits, frequency, cooldowns)  
+- Behaviour model (normal send size & patterns)  
 - Device fingerprint module  
-- Pluggable API for any DigiByte wallet
+- Pluggable API for **any** DigiByte wallet
 
 ---
 
@@ -51,14 +51,38 @@ This repository implements Layer 5.
 ```
 /src
   /qwg
+    __init__.py
+    engine.py
     risk_context.py
     decisions.py
-    engine.py
     policies.py
-    device.py
 /tests
-README.md
+  test_engine.py
+/examples
+  basic_usage.py
 LICENSE
+README.md
+```
+
+---
+
+## 🧩 Basic Usage
+
+```python
+from qwg import DecisionEngine, WalletPolicy, RiskContext, RiskLevel
+
+policy = WalletPolicy()
+engine = DecisionEngine(policy=policy)
+
+ctx = RiskContext(
+    wallet_balance=10_000.0,
+    tx_amount=4_000.0,
+    sentinel_level=RiskLevel.NORMAL,
+    adn_level=RiskLevel.NORMAL,
+)
+
+result = engine.evaluate_transaction(ctx)
+print(result.decision, result.reason)
 ```
 
 ---
@@ -71,8 +95,8 @@ MIT License — open source, free for all DigiByte developers.
 
 ## 🌐 Vision
 
-To provide DigiByte with a future‑proof, intelligent wallet protection layer that complements the Quantum Shield Network and prepares the ecosystem for full PQC migration.
+To provide DigiByte with a future-proof, intelligent wallet protection layer that completes the Quantum Shield Network and prepares the ecosystem for full PQC migration.
 
 ---
 
-© 2025 DarekDGB – Open‑source protection for DigiByte.
+© 2025 DarekDGB – Open-source protection for DigiByte
