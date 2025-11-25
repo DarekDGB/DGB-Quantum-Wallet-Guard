@@ -1,40 +1,51 @@
 """
-Basic example of using DGB Quantum Wallet Guard (Layer 5).
+Basic example: normal vs suspicious transaction.
 
-This is how a DigiByte wallet would call the engine
-before broadcasting a transaction.
+Run with:
+    python -m examples.basic_usage
 """
 
-from qwg import DecisionEngine, WalletPolicy, RiskContext, RiskLevel
+from qwg.engine import DecisionEngine
+from qwg.policies import WalletPolicy
+from qwg.risk_context import RiskContext, RiskLevel
+
+
+def show_result(label: str, ctx: RiskContext, engine: DecisionEngine) -> None:
+    result = engine.evaluate_transaction(ctx)
+    print(f"\n[{label}]")
+    print(f"  decision : {result.decision.value}")
+    print(f"  reason   : {result.reason}")
+    if result.cooldown_seconds:
+        print(f"  cooldown : {result.cooldown_seconds}s")
+    if result.suggested_limit is not None:
+        print(f"  suggested_limit : {result.suggested_limit}")
+    if result.require_confirmation or result.require_second_factor:
+        print("  extra_auth : confirmation="
+              f"{result.require_confirmation}, "
+              f"second_factor={result.require_second_factor}")
 
 
 def main() -> None:
-    # 1) Load or define wallet policy
     policy = WalletPolicy()
-
-    # 2) Create engine
     engine = DecisionEngine(policy=policy)
 
-    # 3) Build risk context for a transaction
-    ctx = RiskContext(
-        wallet_balance=10_000.0,   # total DGB balance
-        tx_amount=4_000.0,         # amount we want to send
+    # Normal small transaction
+    normal_ctx = RiskContext(
+        wallet_balance=1_000.0,
+        tx_amount=50.0,
         sentinel_level=RiskLevel.NORMAL,
         adn_level=RiskLevel.NORMAL,
-        dqs_network_score=0.1,
-        behaviour_score=1.0,
-        trusted_device=True,
     )
+    show_result("normal_tx", normal_ctx, engine)
 
-    # 4) Ask engine for a decision
-    result = engine.evaluate_transaction(ctx)
-
-    print("Decision:", result.decision.value)
-    print("Reason:", result.reason)
-    if result.suggested_limit is not None:
-        print("Suggested limit:", result.suggested_limit)
-    if result.cooldown_seconds:
-        print("Cooldown (s):", result.cooldown_seconds)
+    # Suspicious large transaction (50% of balance)
+    big_ctx = RiskContext(
+        wallet_balance=1_000.0,
+        tx_amount=500.0,
+        sentinel_level=RiskLevel.NORMAL,
+        adn_level=RiskLevel.NORMAL,
+    )
+    show_result("large_tx", big_ctx, engine)
 
 
 if __name__ == "__main__":
