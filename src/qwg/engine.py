@@ -7,8 +7,8 @@ class DecisionEngine:
     """
     Core brain of DGB Quantum Wallet Guard (Layer 5).
 
-    v0.1: simple, transparent rules.
-    Later we can plug AI / ML on top of this without changing the public API.
+    v0.2: simple, transparent rules + policy-aware ordering.
+    Later we can plug AI / ML on top of this.
     """
 
     def __init__(self, policy: WalletPolicy | None = None) -> None:
@@ -18,16 +18,13 @@ class DecisionEngine:
         p = self.policy
 
         # 1) Hard stop on CRITICAL risk from Sentinel or ADN
-        if (
-            ctx.sentinel_level == RiskLevel.CRITICAL
-            or ctx.adn_level == RiskLevel.CRITICAL
-        ):
+        if ctx.sentinel_level == RiskLevel.CRITICAL or ctx.adn_level == RiskLevel.CRITICAL:
             return DecisionResult(
                 decision=Decision.BLOCK,
                 reason="Critical chain or node risk reported by Sentinel/ADN.",
             )
 
-        # 2) If risk is strictly ABOVE wallet policy ceiling → DELAY
+        # 2) If risk is above wallet policy, delay tx
         if (
             ctx.sentinel_level.severity() > p.max_allowed_risk.severity()
             or ctx.adn_level.severity() > p.max_allowed_risk.severity()
@@ -48,9 +45,7 @@ class DecisionEngine:
                 )
 
         # 4) Extra auth for large absolute amounts
-        # This must run BEFORE ratio rules so tests like
-        # test_require_extra_auth_for_big_amount pass:
-        # big amount ⇒ REQUIRE_EXTRA_AUTH even if ratio is also large.
+        #    (this should trigger BEFORE ratio-based warnings)
         if ctx.tx_amount >= p.threshold_extra_auth:
             return DecisionResult(
                 decision=Decision.REQUIRE_EXTRA_AUTH,
@@ -63,11 +58,8 @@ class DecisionEngine:
         if ctx.wallet_balance > 0:
             ratio = ctx.tx_amount / ctx.wallet_balance
 
-            # HIGH risk → use stricter ratio
-            if (
-                ctx.sentinel_level == RiskLevel.HIGH
-                or ctx.adn_level == RiskLevel.HIGH
-            ):
+            if ctx.sentinel_level == RiskLevel.HIGH or ctx.adn_level == RiskLevel.HIGH:
+                # High risk → use stricter ratio
                 if ratio > p.max_tx_ratio_high:
                     return DecisionResult(
                         decision=Decision.WARN,
@@ -76,7 +68,7 @@ class DecisionEngine:
                         suggested_limit=p.max_tx_ratio_high * ctx.wallet_balance,
                     )
             else:
-                # NORMAL or ELEVATED risk
+                # Normal or elevated risk
                 if ratio > p.max_tx_ratio_normal:
                     return DecisionResult(
                         decision=Decision.WARN,
@@ -85,7 +77,7 @@ class DecisionEngine:
                         suggested_limit=p.max_tx_ratio_normal * ctx.wallet_balance,
                     )
 
-        # 6) Behaviour / device checks (very simple for v0.1)
+        # 6) Behaviour / device checks (very simple for v0.2)
         if ctx.behaviour_score > 1.5 or not ctx.trusted_device:
             return DecisionResult(
                 decision=Decision.WARN,
