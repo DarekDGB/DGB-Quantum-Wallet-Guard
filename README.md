@@ -1,52 +1,55 @@
-# DGB Quantum Wallet Guard — Layer 5 v2  
+# DGB Quantum Wallet Guard --- Layer 5 v2
+
 ### Universal Wallet Security Engine for DigiByte
 
-Welcome to **Layer 5 v2** of the DigiByte Quantum Shield Network — the **DGB Quantum Wallet Guard**.  
-This module acts as the final wallet‑level protection layer, sitting on top of:
+Welcome to **Layer 5 v2** of the DigiByte Quantum Shield Network --- the
+**DGB Quantum Wallet Guard**.\
+This module acts as the final wallet‑level protection layer, sitting on
+top of:
 
-1. **Sentinel AI v2** — chain‑level detection  
-2. **DQSN** — network‑wide threat scoring  
-3. **ADN v2** — node‑level autonomous protection  
-4. **DGB Wallet Guardian v2** — wallet safety + rules  
-5. **Quantum Wallet Guard v2** ← *this repo*
+1.  **Sentinel AI v2** --- chain‑level detection\
+2.  **DQSN** --- network‑wide threat scoring\
+3.  **ADN v2** --- node‑level autonomous protection\
+4.  **DGB Wallet Guardian v2** --- wallet safety + rules\
+5.  **Quantum Wallet Guard v2** ← *this repo*
 
-Layer 5 v2 integrates **all signals** from the entire quantum shield and makes final decisions for **every outgoing transaction**.
+Layer 5 v2 integrates **all signals** from the entire quantum shield and
+makes final decisions for **every outgoing transaction**.
 
----
+------------------------------------------------------------------------
 
 ## 🚀 Features in v2
-- ✔️ Advanced decision engine  
-- ✔️ Unified risk model  
-- ✔️ Wallet policies enforcement  
-- ✔️ Extra authentication triggers  
-- ✔️ Behaviour & device checks  
-- ✔️ Full test suite (pytest CI)  
-- ✔️ Clean modular architecture  
-- ✔️ Future‑proof for PQC integration (v3)  
 
----
+-   ✔️ Advanced decision engine\
+-   ✔️ Unified risk model\
+-   ✔️ Wallet policies enforcement\
+-   ✔️ Extra authentication triggers\
+-   ✔️ Behaviour & device checks\
+-   ✔️ Full test suite (pytest CI)\
+-   ✔️ Clean modular architecture\
+-   ✔️ Future‑proof for PQC integration (v3)
+
+------------------------------------------------------------------------
 
 ## 📁 Project Structure
-```
-src/qwg/
-    engine.py
-    risk_context.py
-    policies.py
-    decisions.py
 
-examples/
-tests/
-.github/workflows/ci.yml
-```
+    src/qwg/
+        engine.py
+        risk_context.py
+        policies.py
+        decisions.py
 
----
+    examples/
+    tests/
+    .github/workflows/ci.yml
+
+------------------------------------------------------------------------
 
 # 🧠 Core Components
 
----
-
 ## 1. `risk_context.py`
-```python
+
+``` python
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
@@ -79,10 +82,11 @@ class RiskContext:
     created_at: datetime = datetime.utcnow()
 ```
 
----
+------------------------------------------------------------------------
 
 ## 2. `policies.py`
-```python
+
+``` python
 from dataclasses import dataclass
 from .risk_context import RiskLevel
 
@@ -99,10 +103,11 @@ class WalletPolicy:
     threshold_extra_auth: float = 10_000.0
 ```
 
----
+------------------------------------------------------------------------
 
 ## 3. `decisions.py`
-```python
+
+``` python
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
@@ -124,10 +129,11 @@ class DecisionResult:
     require_second_factor: bool = False
 ```
 
----
+------------------------------------------------------------------------
 
 ## 4. `engine.py`
-```python
+
+``` python
 from .risk_context import RiskContext, RiskLevel
 from .policies import WalletPolicy
 from .decisions import Decision, DecisionResult
@@ -201,12 +207,13 @@ class DecisionEngine:
         )
 ```
 
----
+------------------------------------------------------------------------
 
 # 📘 Examples (`/examples`)
 
 ## 1. Basic Usage
-```python
+
+``` python
 from qwg.engine import DecisionEngine
 from qwg.risk_context import RiskContext
 
@@ -219,7 +226,8 @@ print(result)
 ```
 
 ## 2. High-Risk Scenario
-```python
+
+``` python
 ctx = RiskContext(
     wallet_balance=1000,
     tx_amount=200,
@@ -228,7 +236,8 @@ ctx = RiskContext(
 ```
 
 ## 3. Behaviour & Device Checks
-```python
+
+``` python
 ctx = RiskContext(
     wallet_balance=1000,
     tx_amount=50,
@@ -237,29 +246,32 @@ ctx = RiskContext(
 )
 ```
 
----
+------------------------------------------------------------------------
 
 # 🧪 Testing (pytest)
+
 Full test suite covering:
 
-- engine logic  
-- ratio rules  
-- critical chain risk  
-- extra authentication  
-- behaviour + device checks  
+-   engine logic\
+-   ratio rules\
+-   critical chain risk\
+-   extra authentication\
+-   behaviour + device checks
 
 Runs automatically in GitHub Actions.
 
----
+------------------------------------------------------------------------
 
 # 🔮 Next Milestone
+
 After all 5 layers reach **v2 stable**, we begin:
 
 ### **🧩 Merge all layers into the Full DigiByte Quantum Shield Network (2026)**
 
 A unified PQ-secure defence system for the entire DigiByte blockchain.
 
----
+------------------------------------------------------------------------
 
-# Made with ✨ by Darek & Angel  
-DigiByte Quantum Shield — protecting the future.
+# Made by Darek & Angel
+
+DigiByte Quantum Shield --- protecting the future.
