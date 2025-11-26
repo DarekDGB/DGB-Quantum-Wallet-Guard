@@ -1,24 +1,10 @@
-"""
-Adaptive bridge for Quantum Wallet Guard v2.
-
-This module sends AdaptiveEvent objects into the
-DigiByte Quantum Adaptive Core whenever QWG reacts
-to suspicious withdrawal behaviour.
-
-Layer name used here: "qwg".
-"""
-
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from adaptive_core.models import AdaptiveEvent
-from adaptive_core.memory import AdaptiveMemoryWriter
-
 
 def emit_adaptive_event(
-    adaptive_sink: Optional[AdaptiveMemoryWriter],
-    *,
+    adaptive_sink: Any,
     event_id: str,
     action: str,
     severity: float,
@@ -27,52 +13,38 @@ def emit_adaptive_event(
     extra: Optional[Dict[str, Any]] = None,
 ) -> None:
     """
-    Push a single Quantum Wallet Guard reaction into the Adaptive Core.
+    Thin, dependency-free bridge from QWG → Adaptive Core.
 
-    Parameters
-    ----------
-    adaptive_sink:
-        Instance of AdaptiveMemoryWriter provided by the host app.
-        If None is passed, this function becomes a no-op (safe fallback).
+    - This repo does NOT import `adaptive_core` directly.
+    - `adaptive_sink` can be any object that exposes either:
+        * handle_event(event: dict)
+        * add_event(event: dict)
 
-    event_id:
-        Unique or semi-unique identifier for the wallet event
-        (e.g. txid, session id, or internal audit id).
-
-    action:
-        Short label describing what QWG actually did:
-        - "withdrawal_delayed"
-        - "cooldown_started"
-        - "withdrawal_blocked"
-        - "extra_verification_required"
-        etc.
-
-    severity:
-        0.0–1.0 rough severity score of this reaction.
-
-    fingerprint:
-        QWG-level fingerprint of the situation – for example
-        wallet fingerprint + device + policy id.
-
-    user_id:
-        Optional end-user identifier (hashed or pseudonymous).
-
-    extra:
-        Optional dictionary with structured context
-        (cooldown length, rule ids, etc.).
+    If no compatible method is found, or if anything fails, this
+    function quietly returns without raising. Wallet safety first.
     """
     if adaptive_sink is None:
-        # Running in stand-alone mode, nothing to do
         return
 
-    event = AdaptiveEvent(
-        layer="qwg",
-        anomaly_type="wallet_protection",
-        action=action,
-        severity=severity,
-        fingerprint=fingerprint,
-        metadata=extra or {},
-        event_id=event_id,
-    )
+    event: Dict[str, Any] = {
+        "event_id": event_id,
+        "action": action,
+        "severity": severity,
+        "fingerprint": fingerprint,
+        "user_id": user_id,
+        "extra": extra or {},
+        "source": "qwg",
+    }
 
-    adaptive_sink.write_event(event)
+    # Try common method names used by Adaptive Core or other sinks
+    handler = getattr(adaptive_sink, "handle_event", None) or getattr(
+        adaptive_sink, "add_event", None
+    )
+    if handler is None:
+        return
+
+    try:
+        handler(event)
+    except Exception:
+        # Never allow adaptive plumbing to break wallet decisions.
+        return
