@@ -10,10 +10,13 @@ class DecisionEngine:
     """
     Core brain of DGB Quantum Wallet Guard (Layer 5).
 
-    v0.3:
+    v0.4:
       - simple, transparent rules + policy-aware ordering
       - emits AdaptiveEvent records to the Adaptive Core
         whenever a risky wallet action is blocked / delayed / warned.
+      - v2: enriches events with threat_type + description so
+        Adaptive Core v2 can store them as ThreatPackets and use
+        them inside the immune reports.
     """
 
     def __init__(self, policy: WalletPolicy | None = None) -> None:
@@ -46,6 +49,9 @@ class DecisionEngine:
             fingerprint = getattr(ctx, "wallet_fingerprint", "unknown-wallet")
             user_id = getattr(ctx, "user_id", None)
 
+            # threat_type label used by Adaptive Core v2 (via adaptive_bridge)
+            threat_type = f"wallet_{decision.name.lower()}"
+
             emit_adaptive_event(
                 adaptive_sink=adaptive_sink,
                 event_id=tx_id,
@@ -54,6 +60,12 @@ class DecisionEngine:
                 fingerprint=fingerprint,
                 user_id=user_id,
                 extra={
+                    # High-level semantics for Adaptive Core v2
+                    "threat_type": threat_type,
+                    "description": reason,
+                    "tx_id": tx_id,
+                    "wallet_id": fingerprint,
+                    # Risk context for deeper analysis
                     "reason": reason,
                     "sentinel_level": getattr(
                         ctx.sentinel_level, "name", str(ctx.sentinel_level)
