@@ -1,148 +1,140 @@
-# DigiByte Quantum Wallet Guard  
-## Technical Specification — Version 2  
-**Author:** DarekDGB  
-**License:** MIT  
-**Status:** Stable v2 (pre‑merge)
+# 🛡 QWG Technical Specification — v2
 
----
+## 1. Overview
+Quantum Wallet Guard (QWG) is the Layer‑5 behavioural risk engine in the DigiByte Quantum Shield. 
+It evaluates wallet activity, timing, UTXO structure, and cross‑wallet correlations to produce a Quantum‑Style Risk Score (QRS).
 
-## 1. Purpose
+## 2. Core Modules
+### 2.1 QWGEngine (engine.py)
+- Entry point for all analysis.
+- Methods:
+  - `process_sweep_event(...)`
+  - `evaluate_timing(...)`
+  - `compute_qrs(...)`
+- Outputs Decision object.
 
-The Quantum Wallet Guard (QWG) is Layer 5 of the DigiByte Quantum Shield Network.  
-It provides final transaction‑level security by combining signals from:
+### 2.2 RiskContext (risk_context.py)
+Tracks:
+- event history
+- timing deltas
+- entropy
+- wallet relationships
 
-- Sentinel AI v2 (Layer 1)  
-- DQSN (Layer 2)  
-- ADN v2 (Layer 3)  
-- DGB Wallet Guardian v2 (Layer 4)
+### 2.3 Policies (policies.py)
+Defines thresholds:
+- LOW: 0‑24
+- ELEVATED: 25‑49
+- HIGH: 50‑89
+- CRITICAL: 90‑100
 
-QWG enforces deterministic rules ensuring safe wallet behaviour under normal and high‑risk conditions.
+Pattern policies:
+- DORMANT_KEY_SWEEP
+- MULTI_WALLET_DRAIN
 
----
+### 2.4 Decisions (decisions.py)
+Object fields:
+- qrs_score: int
+- risk_level: str
+- pattern: str | None
 
-## 2. Architecture
+### 2.5 Adaptive Bridge (adaptive_bridge.py)
+Optional integration:
+- send policy updates
+- receive global signals
+- unify with Adaptive Core behaviour
 
+## 3. Data Structures
+
+### SweepEvent (example usage)
 ```
-Sentinel AI v2 ─┐
-                ├──► RiskContext → DecisionEngine → DecisionResult
-       DQSN ────┤
-       ADN v2 ──┘
-```
-
-QWG does not replace lower layers — it consumes their signals.
-
----
-
-## 3. Core Types
-
-### 3.1 RiskLevel
-
-```python
-class RiskLevel(str, Enum):
-    NORMAL = "normal"
-    ELEVATED = "elevated"
-    HIGH = "high"
-    CRITICAL = "critical"
-```
-
-Ordered severity: NORMAL < ELEVATED < HIGH < CRITICAL.
-
-### 3.2 RiskContext
-
-Central structure aggregating chain, network, node, and wallet signals.
-
-- sentinel_level  
-- dqs_network_score  
-- adn_level  
-- wallet_balance  
-- tx_amount  
-- behaviour_score  
-- trusted_device  
-- device_id  
-- created_at  
-
-### 3.3 WalletPolicy
-
-Defines configurable transaction safety rules:
-
-- block_full_balance_tx  
-- max_tx_ratio_normal  
-- max_tx_ratio_high  
-- max_allowed_risk  
-- cooldown_seconds_warn  
-- cooldown_seconds_delay  
-- threshold_extra_auth  
-
-### 3.4 Decision & DecisionResult
-
-Public API:
-
-```
-allow, warn, delay, block, require_extra_auth
+wallet_id: str
+utxos_moved: int
+amount_dgb: float
+destination: str
+timestamp: datetime
 ```
 
-DecisionResult encapsulates:
+### DecisionResult
+```
+qrs_score: int
+risk_level: str
+pattern: Optional[str]
+details: dict
+```
 
-- decision  
-- reason  
-- suggested_limit  
-- cooldown_seconds  
-- require_confirmation  
-- require_second_factor  
+## 4. QRS Calculation Logic
+Inputs:
+- timing burst intensity
+- UTXO fragmentation
+- destination clustering
+- multi-wallet coordination
+- prior flagged events
+- external risk signals
 
----
+Process:
+1. Calculate timing anomaly score  
+2. Evaluate UTXO structure  
+3. Detect pattern signatures  
+4. Apply policy thresholds  
+5. Produce final DecisionResult  
 
-## 4. Engine Behaviour
+## 5. Pattern Detection
 
-Evaluation order (highest‑priority rules first):
+### 5.1 DORMANT_KEY_SWEEP
+Triggered when:
+- multiple long‑inactive wallets move within a short window
+- amounts fall within correlated ranges
+- destinations cluster to 1–2 aggregation addresses
+- sequence acceleration is present
 
-1. **CRITICAL chain/node risk → BLOCK**  
-2. **Risk exceeds wallet tolerance → DELAY**  
-3. **~100% balance wipe → BLOCK**  
-4. **Large ratio (normal/high risk) → WARN**  
-5. **High absolute amount → REQUIRE_EXTRA_AUTH**  
-6. **Behaviour/device anomalies → WARN**  
-7. **Else → ALLOW**
+### 5.2 MULTI_WALLET_DRAIN
+Triggered when:
+- many active wallets drain simultaneously
+- destination diversity drops
+- amounts appear tightly correlated
 
----
+## 6. Integration Flow
+1. Instantiate RiskContext  
+2. Instantiate QWGEngine(risk_context)  
+3. Feed events sequentially  
+4. Parse DecisionResult  
+5. If risk == CRITICAL:  
+   - Guardian Wallet triggers friction  
+   - ADN v2 may lockdown  
+   - DQSN v2 may escalate network‑wide score  
 
-## 5. Integration
+## 7. Example Event Flow
+Included in:
+- examples/dormant_key_sweep_scenario.py  
+- tests/test_dormant_key_sweep.py  
 
-QWG is fully deterministic and designed for:
+File demonstrates:
+- QRS evolution
+- CRITICAL escalation
+- pattern detection tag
 
-- Desktop wallets  
-- Mobile wallets  
-- Node RPC services  
-- Exchanges using DigiByte hot/cold wallets  
+## 8. Test Coverage
+### Covered:
+- engine logic  
+- policies thresholds  
+- decision object behaviour  
+- dormant key sweep scenario  
 
-Wallets must enforce decisions strictly.
+### Command:
+```
+pytest -q
+```
 
----
+## 9. Performance Expectations
+- Single event eval < 3 ms  
+- Context memory < 1 MB typical  
+- Suitable for exchanges and Guardian Wallet integrations  
 
-## 6. Test Requirements
+## 10. Roadmap
+- more pattern signatures  
+- PQC‑specific heuristics  
+- adaptive policy tuning  
+- deeper Sentinel/DQSN integration  
 
-The v2 test suite validates:
-
-- Enum stability  
-- Policy defaults  
-- Engine logic  
-- High‑risk scenarios  
-- Extra authentication flow  
-
-Any implementation in Rust, C++, or JS must reproduce identical outputs.
-
----
-
-## 7. Merge Roadmap (2026)
-
-After all layers reach v2:
-
-- Merge Layers 1–5 into one DigiByte Quantum Shield Network SDK.  
-- Provide unified risk API.  
-- Add PQC migration hooks.
-
----
-
-## 8. Conclusion
-
-QWG v2 defines stable wallet‑level protection rules for the entire DigiByte ecosystem.
+## 11. Licensing
+MIT — free for DigiByte ecosystem and all chains.
