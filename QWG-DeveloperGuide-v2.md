@@ -1,132 +1,289 @@
-# DigiByte Quantum Wallet Guard  
-## Developer Guide — Version 2  
-**Author:** DarekDGB  
-**License:** MIT
+# 🛡 QWG Developer Guide — v2
+
+Author: **DarekDGB (@Darek_DGB)**  
+AI Engineering Assistant: **Angel**  
+Status: **v2 – Developer Integration Guide**  
+License: **MIT**
 
 ---
 
 # 1. Introduction
 
-This guide explains how developers integrate QWG into DigiByte wallets, services, and node‑based systems.
+The Quantum Wallet Guard (QWG) Developer Guide explains how to:
 
-QWG provides the final decision on whether a transaction should be:
+- integrate QWG into a DigiByte-aware application  
+- feed events into the engine  
+- interpret QRS (Quantum-Style Risk Score)  
+- react to HIGH and CRITICAL classifications  
+- run simulations and tests  
+- connect QWG to Guardian Wallet v2, ADN v2 and Adaptive Core  
 
-- allowed  
-- warned  
-- delayed  
-- blocked  
-- or require extra authentication  
+QWG is **non-invasive**: it does not modify consensus or digisignature behaviour.  
+It provides **behaviour-based quantum-era risk analysis** on wallet activity.
 
 ---
 
-# 2. Quick Start
+# 2. Installation & Requirements
+
+QWG is a pure Python package.  
+Requirements:
+
+- Python ≥ 3.10  
+- pytest (for tests)  
+- DigiByte data feed (your own app or node RPC)  
+
+Clone the repository:
+
+```
+git clone https://github.com/DarekDGB/DigiByte-Quantum-Wallet-Guard
+cd DigiByte-Quantum-Wallet-Guard
+```
+
+Run tests:
+
+```
+pytest -q
+```
+
+---
+
+# 3. Core Components (Developer View)
+
+### 3.1 QWGEngine
+Main engine responsible for:
+
+- timing analysis  
+- UTXO pattern evaluation  
+- QRS computation  
+- pattern signature detection  
+- policy enforcement  
+
+### 3.2 RiskContext
+State container for:
+
+- timestamps  
+- wallet relationships  
+- previous flagged events  
+- entropy signals  
+
+### 3.3 Policies
+Defines:
+
+- thresholds: LOW, ELEVATED, HIGH, CRITICAL  
+- pattern rules: DORMANT_KEY_SWEEP, MULTI_WALLET_DRAIN  
+
+### 3.4 Decisions
+Structured response with:
+
+```
+qrs_score: int
+risk_level: str
+pattern: Optional[str]
+details: dict
+```
+
+---
+
+# 4. Basic Integration Example
+
+Minimal developer usage:
 
 ```python
-from qwg.engine import DecisionEngine
-from qwg.risk_context import RiskContext, RiskLevel
+from qwg.engine import QWGEngine
+from qwg.risk_context import RiskContext
 
-engine = DecisionEngine()
+ctx = RiskContext()
+engine = QWGEngine(risk_context=ctx)
 
-ctx = RiskContext(wallet_balance=1000, tx_amount=200)
-result = engine.evaluate_transaction(ctx)
-print(result.decision, result.reason)
-```
-
----
-
-# 3. Feeding Risk Signals
-
-Typical pipeline:
-
-```
-Wallet UI → Build tx → Gather signals → Create RiskContext → QWG DecisionEngine
-```
-
-Recommended fields:
-
-- wallet_balance  
-- tx_amount  
-- sentinel_level  
-- adn_level  
-- behaviour_score  
-- trusted_device  
-
----
-
-# 4. Handling Decisions
-
-| Decision | Required Wallet Action |
-|----------|------------------------|
-| ALLOW | Sign + broadcast |
-| WARN | Show warning, suggest safer limit |
-| DELAY | Enforce cooldown timer |
-| BLOCK | Do not sign — show reason |
-| REQUIRE_EXTRA_AUTH | Trigger 2FA or hardware approval |
-
-Example:
-
-```python
-if result.decision is Decision.WARN:
-    show_warning(result.reason)
-```
-
----
-
-# 5. Custom Policies
-
-```python
-strict = WalletPolicy(
-    max_tx_ratio_normal=0.3,
-    threshold_extra_auth=2000.0,
-    max_allowed_risk=RiskLevel.ELEVATED,
+result = engine.process_sweep_event(
+    wallet_id="A",
+    utxos_moved=5,
+    amount_dgb=4200,
+    destination="X1",
+    timestamp=datetime.utcnow()
 )
-engine = DecisionEngine(strict)
+
+print(result.qrs_score, result.risk_level, result.pattern)
 ```
 
-Policies allow wallet differentiation:
+---
 
-- retail wallets  
-- institutional custodians  
-- exchanges  
-- mobile/desktop clients  
+# 5. Event Types
+
+QWG accepts structured *wallet behaviour events*.  
+The core event model includes:
+
+- **wallet_id**  
+- **utxos_moved**  
+- **amount_dgb**  
+- **destination**  
+- **timestamp**  
+
+Developers transforming DigiByte RPC calls into QWG events must:
+
+- ensure timestamp accuracy  
+- correctly track per-wallet identifiers  
+- preserve UTXO counts  
 
 ---
 
-# 6. Testing Your Integration
+# 6. Pattern Detection Logic
 
-QWG ships a comprehensive pytest suite validating:
+### 6.1 Dormant Key Sweep
+Triggered when dormant wallets move in rapid succession toward clustering destinations.
 
-- decision logic  
-- warning conditions  
-- extra‑auth triggers  
-- behaviour/device models  
+Developer checklist:
 
-Wallets should include their own tests simulating real‑world scenarios.
+- map each event to wallet_id  
+- track timing between events  
+- maintain consistent timestamps  
+- respect cross-wallet relationships  
 
----
+### 6.2 Multi-Wallet Drain
+Triggered when many active wallets drain simultaneously.
 
-# 7. Logging & Observability
+Checklist:
 
-Wallets should log:
-
-- input RiskContext (sanitized)  
-- output DecisionResult  
-- user actions after decision  
-
-This enables tuning and anomaly detection.
+- maintain event ordering  
+- detect window bursts  
+- track destination entropy  
 
 ---
 
-# 8. Merge Roadmap (2026)
+# 7. Deep Integration (Guardian Wallet, ADN, Adaptive Core)
 
-After all 5 layers reach v2:
+### 7.1 Guardian Wallet v2
+Guardian Wallet should:
 
-- Integrate into a unified Quantum Shield Network SDK  
-- Provide stable API bindings for Rust, C++, JS  
-- Add PQC upgrade pathways  
+- show warnings on HIGH  
+- enforce delays on CRITICAL  
+- require additional verification on CRITICAL  
+
+QWG → Guardian flow:
+
+```
+QWG DecisionResult
+       ↓
+Guardian UX → warning, friction, or lock
+```
+
+### 7.2 ADN v2 (Autonomous Defense Node)
+ADN can use QWG results to:
+
+- lockdown RPC endpoints  
+- throttle transactions  
+- isolate node behaviour  
+
+### 7.3 Adaptive Core
+Adaptive Core learns from:
+
+- DecisionResults  
+- timing sequences  
+- cluster labels  
+- repeated attack scenarios  
+
+Updates may change policies dynamically.
 
 ---
 
-# 9. Credits
+# 8. Running Simulation Scenarios
 
-Designed and authored by **DarekDGB** as part of the DigiByte Quantum Shield Network.
+From repo root:
+
+```
+python examples/dormant_key_sweep_scenario.py
+```
+
+You will see:
+
+- step-by-step event evaluation  
+- evolving QRS  
+- final CRITICAL risk  
+
+This demonstrates real attack behaviour.
+
+---
+
+# 9. Writing Your Own QWG Scenarios
+
+To create your own:
+
+1. Create a dataclass representing your event  
+2. Build a list of events in order  
+3. Feed them into QWGEngine sequentially  
+4. Log QRS and patterns  
+
+Example template:
+
+```python
+events = [
+    SweepEvent(1, 0,  "A", 10, 12000, "X1"),
+    SweepEvent(2, 6,  "B", 7,  9000,  "X1"),
+    SweepEvent(3, 12, "C", 5,  4200,  "X2")
+]
+```
+
+---
+
+# 10. Testing & CI
+
+Tests included:
+
+```
+tests/test_engine.py
+tests/test_policies.py
+tests/test_decisions.py
+tests/test_dormant_key_sweep.py
+tests/test_adaptive_bridge.py
+```
+
+Run:
+
+```
+pytest -q
+```
+
+---
+
+# 11. Deployment Recommendations
+
+- Use staging/testnet before production  
+- Store DecisionResult logs for auditing  
+- Integrate Guardian Wallet for user-facing actions  
+- Connect to ADN for node defence  
+- Feed anonymised results into Adaptive Core  
+
+---
+
+# 12. Best Practices for Integrators
+
+- Always maintain strict timestamp ordering  
+- Never skip events — QWG relies on sequence integrity  
+- Consider per-user or per-platform RiskContext isolation  
+- Log all high-risk decisions  
+- Merge with DQSN and Sentinel signals where possible  
+
+---
+
+# 13. Roadmap for Developers
+
+- JSON schema for QWG events  
+- WebSocket real-time interface  
+- Enterprise multi-wallet monitoring module  
+- PQC-aware heuristics  
+- Multi-chain support (Litecoin, Dogecoin, Bitcoin)  
+- Adaptive Core dynamic policy injection  
+
+---
+
+# 14. License
+
+MIT — free for all chains, free for DigiByte ecosystem.
+
+---
+
+# 15. Contact
+
+For technical questions, integration help, or contributions:
+
+**@Darek_DGB** on X  
