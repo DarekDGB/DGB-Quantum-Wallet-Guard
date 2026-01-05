@@ -5,6 +5,9 @@ from .policies import WalletPolicy
 from .decisions import Decision, DecisionResult
 from .adaptive_bridge import emit_adaptive_event
 
+from qwg.adapters import to_v3_verdict
+from qwg.v3.context_hash import compute_context_hash
+
 
 class DecisionEngine:
     """
@@ -17,6 +20,10 @@ class DecisionEngine:
       - v2: enriches events with threat_type + description so
         Adaptive Core v2 can store them as ThreatPackets and use
         them inside the immune reports.
+
+    v3 (wrapper only):
+      - adds a side-effect-free wrapper that returns a v3 glass-box verdict
+      - does NOT change decision logic or policy behavior
     """
 
     def __init__(self, policy: WalletPolicy | None = None) -> None:
@@ -84,7 +91,76 @@ class DecisionEngine:
             return
 
     # ------------------------------------------------------------------ #
-    # Public API
+    # v3 helpers (pure, deterministic)
+    # ------------------------------------------------------------------ #
+
+    def _build_v3_context(self, ctx: RiskContext) -> dict:
+        """
+        Build a deterministic, JSON-serializable context dict for v3 hashing.
+
+        IMPORTANT:
+        - no timestamps
+        - no randomness
+        - no network lookups
+        - stable keys only
+        """
+        return {
+            "sentinel_level": getattr(ctx.sentinel_level, "value", str(ctx.sentinel_level)),
+            "dqs_network_score": float(getattr(ctx, "dqs_network_score", 0.0)),
+            "adn_level": getattr(ctx.adn_level, "value", str(ctx.adn_level)),
+            "wallet_balance": float(getattr(ctx, "wallet_balance", 0.0)),
+            "tx_amount": float(getattr(ctx, "tx_amount", 0.0)),
+            "address_age_days": getattr(ctx, "address_age_days", None),
+            "behaviour_score": float(getattr(ctx, "behaviour_score", 1.0)),
+            "device_id": getattr(ctx, "device_id", None),
+            "trusted_device": bool(getattr(ctx, "trusted_device", True)),
+        }
+
+    def _map_reason_id(self, result: DecisionResult) -> str:
+        """
+        Map a DecisionResult into a stable reason_id for v3 auditing.
+
+        This does NOT affect behavior. It is classification only.
+        """
+        reason = getattr(result, "reason", "") or ""
+
+        # Exact, explicit reason IDs (stable strings).
+        # These are tied to the current rule branches / reason texts.
+        if "Critical chain or node risk" in reason:
+            return "QWG_V3_CRITICAL_CHAIN_OR_NODE_RISK"
+        if "Risk level exceeds wallet policy" in reason:
+            return "QWG_V3_POLICY_MAX_RISK_EXCEEDED"
+        if "Attempt to send ~100% of wallet balance" in reason:
+            return "QWG_V3_FULL_BALANCE_WIPE_ATTEMPT"
+        if "Amount exceeds extra-auth threshold" in reason:
+            return "QWG_V3_EXTRA_AUTH_THRESHOLD_EXCEEDED"
+        if "Large transaction during high risk period" in reason:
+            return "QWG_V3_RATIO_EXCEEDS_HIGH_RISK_LIMIT"
+        if "Transaction exceeds normal per-tx ratio" in reason:
+            return "QWG_V3_RATIO_EXCEEDS_NORMAL_LIMIT"
+        if "Unusual behaviour or untrusted device" in reason:
+            return "QWG_V3_BEHAVIOUR_OR_DEVICE_RISK"
+        if "No policy or risk rule violated" in reason:
+            return "QWG_V3_HEALTHY_ALLOW"
+
+        # Fail-closed for classification: never return empty / unknown silently.
+        # This does not change the decision outcome; it prevents opaque reason IDs.
+        return "QWG_V3_UNCLASSIFIED_REASON"
+
+    def _map_outcome(self, decision: Decision) -> str:
+        """
+        Map internal Decision into v3 outcome string for the verdict envelope.
+        """
+        if decision == Decision.ALLOW:
+            return "allow"
+        if decision == Decision.BLOCK:
+            return "deny"
+        # DELAY / WARN / REQUIRE_EXTRA_AUTH are not 'allow' or 'deny' execution.
+        # We treat them as escalation requirements.
+        return "escalate"
+
+    # ------------------------------------------------------------------ #
+    # Public API (v0.4)
     # ------------------------------------------------------------------ #
 
     def evaluate_transaction(self, ctx: RiskContext) -> DecisionResult:
@@ -184,3 +260,39 @@ class DecisionEngine:
             decision=Decision.ALLOW,
             reason="No policy or risk rule violated.",
         )
+
+    # ------------------------------------------------------------------ #
+    # Public API (v3 wrapper)
+    # ------------------------------------------------------------------ #
+
+    def evaluate_transaction_v3(self, ctx: RiskContext):
+        """
+        v3 wrapper around evaluate_transaction().
+
+        Returns a QWG v3 verdict envelope:
+        - schema_version="v3"
+        - explicit verdict_type: allow / deny / escalate
+        - stable reason_id
+        - deterministic context_hash
+
+        IMPORTANT:
+        - This does NOT change decision logic.
+        - It only wraps the existing DecisionResult.
+        """
+        v3_context = self._build_v3_context(ctx)
+        context_hash = compute_context_hash(v3_context)
+
+        result = self.evaluate_transaction(ctx)
+
+        class _DecisionLike:
+            def __init__(self, outcome: str, reason_id: str):
+                self.outcome = outcome
+                self.reason_id = reason_id
+                self.reasons = None
+
+        decision_like = _DecisionLike(
+            outcome=self._map_outcome(result.decision),
+            reason_id=self._map_reason_id(result),
+        )
+
+        return to_v3_verdict(decision_like, context_hash)
