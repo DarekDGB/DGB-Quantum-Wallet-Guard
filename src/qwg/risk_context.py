@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 from datetime import datetime
@@ -65,7 +65,7 @@ class RiskContext:
     trusted_device: bool = True
 
     # Metadata
-    created_at: datetime = datetime.utcnow()
+    created_at: datetime = field(default_factory=datetime.utcnow)
 
     # ------------------------------------------------------------------ #
     # Helper methods (used by the engine, but also handy for tests)
