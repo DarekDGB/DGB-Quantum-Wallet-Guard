@@ -1,293 +1,125 @@
-# 🛡️ Quantum Wallet Guard (QWG)
-### *User-Side Transaction Vetting, PQC Verification & Behavioural Defence Layer*
-**Architecture by @DarekDGB — MIT Licensed**
+# 🔐 DGB Quantum Wallet Guard (QWG)
+
+[![CI](https://github.com/DarekDGB/DGB-Quantum-Wallet-Guard/actions/workflows/ci.yml/badge.svg)](https://github.com/DarekDGB/DGB-Quantum-Wallet-Guard/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
+[![Status](https://img.shields.io/badge/status-QWG%20v3%20complete-success.svg)](#)
+
+**Author:** DarekDGB  
+**License:** MIT  
+**Status:** QWG v3 complete — glass-box, deterministic, test-enforced
 
 ---
 
-## 🚀 Purpose
+## Overview
 
-**Quantum Wallet Guard (QWG)** is the **user-side defensive engine** of the DigiByte Quantum Shield.  
-It is the final intelligent checkpoint before any wallet action occurs.
+**Quantum Wallet Guard (QWG)** is a **deterministic, policy-driven wallet defense layer** designed to protect cryptocurrency wallets from high-risk transactions, abnormal behavior, and hostile operating conditions.
 
-Where:
+QWG is built with a strict **glass-box security philosophy**:
 
-- **DQSN v2** measures network entropy & health  
-- **Sentinel AI v2** detects anomalies  
-- **ADN v2** produces defence playbooks  
-
-**QWG** evaluates *user transactions and wallet behaviour* in real time.
-
-It performs:
-
-- PQC-ready signature verification  
-- heuristic & behavioural transaction analysis  
-- runtime defence logic  
-- integration with Guardian Wallet  
-- network threat response based on ADN signals  
-
-QWG is **your last line of defence before funds leave the wallet**.
+> Every decision is explicit, deterministic, auditable, and enforced by tests.  
+> No opaque models. No hidden authority. No silent behavior changes.
 
 ---
 
-# 🛡️ Position in the 5-Layer DigiByte Quantum Shield
+## What QWG Is (and Is Not)
 
-```
- ┌───────────────────────────────────────────────┐
- │              Guardian Wallet                  │
- │   User warnings • Hardening policies          │
- └───────────────────────────────────────────────┘
-                     ▲
-                     │  (structured warnings & prompts)
- ┌───────────────────────────────────────────────┐
- │       QWG — Quantum Wallet Guard              │
- │ Runtime Guard • PQC Verification • Behaviour  │
- └───────────────────────────────────────────────┘
-                     ▲
-                     │  (defence playbook outputs)
- ┌───────────────────────────────────────────────┐
- │                ADN v2                         │
- │ Defence Tactics • Scenario Routing            │
- └───────────────────────────────────────────────┘
-                     ▲
-                     │  (threat signals)
- ┌───────────────────────────────────────────────┐
- │             Sentinel AI v2                    │
- │ Telemetry Analytics & Anomaly Detection       │
- └───────────────────────────────────────────────┘
-                     ▲
-                     │  (entropy & network metrics)
- ┌───────────────────────────────────────────────┐
- │                  DQSN v2                      │
- │ Network Health • Node Metrics • Chain Signals │
- └───────────────────────────────────────────────┘
-```
+### QWG **is**
+- A wallet-side **decision engine**
+- A **policy-enforcing defense layer**
+- Deterministic and explainable by construction
+- Safe to audit, reason about, and integrate
 
-QWG is the **shield that stands directly between the user and danger**.
+### QWG **is not**
+- An autonomous AI
+- A black-box risk scorer
+- A signing or execution authority
+- A system that can move funds
+
+QWG never signs transactions and never executes transfers.  
+It only **evaluates risk and returns explicit verdicts**.
 
 ---
 
-# 🎯 Core Mission
+## QWG v3 — Glass-Box Contract
 
-### ✓ PQC Signature Verification  
-QWG includes PQC-ready adapters for:
+QWG v3 introduces a **strict, test-backed contract** without changing the underlying decision logic.
 
-- Falcon  
-- Dilithium  
+### Core guarantees
+- **Deterministic context hashing** (`context_hash`)
+- **Explicit reason identifiers** (`reason_id`)
+- **Immutable verdict objects**
+- **No authority creep**
+- **Fail-closed behavior**
 
-ensuring future-proof DigiByte transaction validation.
-
-### ✓ Transaction Behaviour Analysis  
-Detects anomalies such as:
-
-- draining UTXOs  
-- large sends to unseen addresses  
-- suspicious fee patterns  
-- abnormal timing (bot-like actions)  
-
-### ✓ Runtime Defence Logic  
-Guards the wallet continuously:
-
-- intercepts dangerous actions  
-- delays or blocks unsafe behaviour  
-- triggers Guardian Wallet warnings  
-
-### ✓ ADN Signal Integration  
-If ADN detects a network threat:
-
-- reorg attacks  
-- propagation anomalies  
-- hashpower surges  
-
-QWG adjusts its behaviour accordingly:
-
-- warns users  
-- recommends delaying sends  
-- increases verification strictness  
-
-### ✓ Zero-Trust Protection  
-QWG assumes:
-
-- the OS may be compromised  
-- clipboard may be hijacked  
-- malware may be active  
-- user may be manipulated  
-
-Therefore:
-
-**QWG protects by default.**
+All guarantees are enforced by unit tests and CI.
 
 ---
 
-# 🧠 Threat Model (User-Side Focus)
+## v3 Verdict Output
 
-QWG protects against:
+QWG v3 returns an immutable verdict envelope:
 
-### **1. Human Error**
-- sending to wrong address  
-- sending too much  
-- accepting abnormal fees  
+- `schema_version = "v3"`
+- `verdict_type`: `allow | deny | escalate`
+- `reason_id`: stable machine-readable identifier
+- `context_hash`: deterministic SHA-256 hash
+- `reasons` (optional): additional reason IDs
 
-### **2. Malware / Phishing**
-- clipboard hijacking  
-- auto-withdrawal scripts  
-- infected environment behaviour  
-
-### **3. Quantum Threats (Future)**
-- invalid ECDSA signatures  
-- PQC forgery attempts  
-- mixed-signature anomalies  
-
-### **4. Network-Level Attacks**
-Triggered by ADN signals:
-
-- reorg risk  
-- partition/eclipse detection  
-- mempool flooding  
-- timing manipulation  
-
-### **5. Social Engineering**
-- fake addresses  
-- last-minute swap of recipient  
-- unusual withdrawal behaviour  
+### Verdict semantics
+- **allow** → execution may proceed (subject to higher-level wallet gates)
+- **deny** → execution must not proceed
+- **escalate** → execution must pause for warnings, delays, or extra authentication
 
 ---
 
-# 🧩 Internal Architecture (Reference)
+## Determinism & Auditability
 
-```
-qwg/
-│
-├── pqc/
-│     ├── verifier.py
-│     ├── falcon_adapter.py
-│     ├── dilithium_adapter.py
-│
-├── analysis/
-│     ├── behavior_engine.py
-│     ├── tx_pattern.py
-│     └── fee_sanity.py
-│
-├── defence/
-│     ├── guard_runtime.py
-│     ├── rule_engine.py
-│     └── adn_integration.py
-│
-├── outputs/
-│     ├── guardian_bridge.py
-│     └── warnings.py
-│
-└── utils/
-      ├── types.py
-      ├── config.py
-      └── logging.py
-```
+QWG v3 uses a **pure hashing function** to anchor decisions:
 
-Each module is modular, extendable, and clean — ready for DigiByte Core developers.
+- JSON-serializable input
+- Sorted keys
+- No timestamps
+- No randomness
+- No network calls
+
+This guarantees:
+- reproducible outcomes
+- reliable regression testing
+- clean audit trails
 
 ---
 
-# 📡 Data Flow Overview
+## Documentation
 
-```
-[User attempts a transaction]
-              │
-              ▼
-      ┌───────────────────────┐
-      │   QWG Runtime Guard   │
-      └───────────────────────┘
-              │
-   ┌──────────┼───────────┐
-   ▼          ▼           ▼
-[Behaviour] [PQC]   [ADN Signal]
-[Analysis] [Verify] [Integration]
-   │          │           │
-   └──────────┼───────────┘
-              ▼
-     [Decision & Warning Engine]
-              ▼
-      [Guardian Wallet Prompt]
-```
+- **QWG v3 (authoritative):** `docs/qwg/v3/QWG_V3.md`
+- **QWG v2 (legacy reference):** `docs/qwg/v2/`
+- **Docs index:** `docs/qwg/README.md`
 
-QWG always explains **why** it warns the user.
+> Only v3 documentation reflects current security guarantees.
 
 ---
 
-# 🔐 PQC Architecture
+## Testing & CI
 
-QWG contains:
+This repository includes:
+- decision-path tests (allow / deny / escalate)
+- reason_id stability tests
+- immutability invariants
+- determinism invariants
+- packaging import smoke test
+- CI enforcing editable install via `pyproject.toml`
 
-- PQC signature validator  
-- abstraction layer for signing scheme upgrades  
-- ready adapters (Falcon/Dilithium)  
-- fallback ECDSA behaviour for current DGB  
-
-This ensures:
-
-- DigiByte is ready for quantum migration  
-- wallets remain upgrade-proof  
-- hybrid signatures are supported in future  
+If tests fail, glass-box guarantees are considered broken.
 
 ---
 
-# 🛡️ Design Principles
+## Security
 
-1. **Protect the user by default**  
-2. **Fail-safe — block or warn, never silently allow**  
-3. **Explainable decisions**  
-4. **Deterministic behaviour**  
-5. **Zero-trust model**  
-6. **Composability** — extendable rules  
-7. **Interoperability with Guardian Wallet & ADN**  
+Please see **`SECURITY.md`** for responsible vulnerability disclosure guidelines.
 
 ---
 
-# ⚙️ Code Status
+## License
 
-QWG includes:
-
-- full PQC scaffolding  
-- runtime guard logic  
-- behavioural analysis framework  
-- rule engine  
-- warning output system  
-- structured architecture  
-- CI tests for import stability  
-
-This repository is **architecture-complete** and ready for developer expansion.
-
----
-
-# 🧪 Tests
-
-Includes:
-
-- structure tests  
-- runtime import validation  
-- behavioural engine skeleton tests  
-- PQC verifier stubs  
-
-More simulations can be added by contributors.
-
----
-
-# 🤝 Contribution Policy
-
-See `CONTRIBUTING.md` for full rules.
-
-Summary:
-
-- ✓ improvements welcome  
-- ✓ new defence logic  
-- ✓ stronger rules  
-- ✗ no removal of architecture  
-- ✗ no consensus changes  
-- ✗ no UI logic (handled by Guardian Wallet)  
-
----
-
-# 📜 License
-
-MIT License  
-© 2025 **DarekDGB**
-
-This architecture is free to use with mandatory attribution.
+MIT License © DarekDGB
