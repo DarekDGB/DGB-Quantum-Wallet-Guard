@@ -116,16 +116,14 @@ class DecisionEngine:
             "trusted_device": bool(getattr(ctx, "trusted_device", True)),
         }
 
-    def _map_reason_id(self, result: DecisionResult) -> str:
+    def _map_reason_id_fallback(self, result: DecisionResult) -> str:
         """
-        Map a DecisionResult into a stable reason_id for v3 auditing.
+        Fallback mapping for v3 reason_id (compat only).
 
-        This does NOT affect behavior. It is classification only.
+        This should only be used if an older DecisionResult has no reason_id.
         """
         reason = getattr(result, "reason", "") or ""
 
-        # Exact, explicit reason IDs (stable strings).
-        # These are tied to the current rule branches / reason texts.
         if "Critical chain or node risk" in reason:
             return "QWG_V3_CRITICAL_CHAIN_OR_NODE_RISK"
         if "Risk level exceeds wallet policy" in reason:
@@ -143,8 +141,6 @@ class DecisionEngine:
         if "No policy or risk rule violated" in reason:
             return "QWG_V3_HEALTHY_ALLOW"
 
-        # Fail-closed for classification: never return empty / unknown silently.
-        # This does not change the decision outcome; it prevents opaque reason IDs.
         return "QWG_V3_UNCLASSIFIED_REASON"
 
     def _map_outcome(self, decision: Decision) -> str:
@@ -155,8 +151,6 @@ class DecisionEngine:
             return "allow"
         if decision == Decision.BLOCK:
             return "deny"
-        # DELAY / WARN / REQUIRE_EXTRA_AUTH are not 'allow' or 'deny' execution.
-        # We treat them as escalation requirements.
         return "escalate"
 
     # ------------------------------------------------------------------ #
@@ -172,6 +166,7 @@ class DecisionEngine:
             result = DecisionResult(
                 decision=Decision.BLOCK,
                 reason=reason,
+                reason_id="QWG_V3_CRITICAL_CHAIN_OR_NODE_RISK",
             )
             self._emit_adaptive(ctx, Decision.BLOCK, reason, severity=0.95)
             return result
@@ -185,6 +180,7 @@ class DecisionEngine:
             result = DecisionResult(
                 decision=Decision.DELAY,
                 reason=reason,
+                reason_id="QWG_V3_POLICY_MAX_RISK_EXCEEDED",
                 cooldown_seconds=p.cooldown_seconds_delay,
             )
             self._emit_adaptive(ctx, Decision.DELAY, reason, severity=0.75)
@@ -198,17 +194,18 @@ class DecisionEngine:
                 result = DecisionResult(
                     decision=Decision.BLOCK,
                     reason=reason,
+                    reason_id="QWG_V3_FULL_BALANCE_WIPE_ATTEMPT",
                 )
                 self._emit_adaptive(ctx, Decision.BLOCK, reason, severity=0.9)
                 return result
 
         # 4) Extra auth for large absolute amounts
-        #    (this should trigger BEFORE ratio-based warnings)
         if ctx.tx_amount >= p.threshold_extra_auth:
             reason = "Amount exceeds extra-auth threshold."
             result = DecisionResult(
                 decision=Decision.REQUIRE_EXTRA_AUTH,
                 reason=reason,
+                reason_id="QWG_V3_EXTRA_AUTH_THRESHOLD_EXCEEDED",
                 require_confirmation=True,
                 require_second_factor=True,
             )
@@ -220,45 +217,47 @@ class DecisionEngine:
             ratio = ctx.tx_amount / ctx.wallet_balance
 
             if ctx.sentinel_level == RiskLevel.HIGH or ctx.adn_level == RiskLevel.HIGH:
-                # High risk → use stricter ratio
                 if ratio > p.max_tx_ratio_high:
                     reason = "Large transaction during high risk period."
                     result = DecisionResult(
                         decision=Decision.WARN,
                         reason=reason,
+                        reason_id="QWG_V3_RATIO_EXCEEDS_HIGH_RISK_LIMIT",
                         cooldown_seconds=p.cooldown_seconds_warn,
                         suggested_limit=p.max_tx_ratio_high * ctx.wallet_balance,
                     )
                     self._emit_adaptive(ctx, Decision.WARN, reason, severity=0.65)
                     return result
             else:
-                # Normal or elevated risk
                 if ratio > p.max_tx_ratio_normal:
                     reason = "Transaction exceeds normal per-tx ratio."
                     result = DecisionResult(
                         decision=Decision.WARN,
                         reason=reason,
+                        reason_id="QWG_V3_RATIO_EXCEEDS_NORMAL_LIMIT",
                         cooldown_seconds=p.cooldown_seconds_warn,
                         suggested_limit=p.max_tx_ratio_normal * ctx.wallet_balance,
                     )
                     self._emit_adaptive(ctx, Decision.WARN, reason, severity=0.55)
                     return result
 
-        # 6) Behaviour / device checks (very simple for v0.2)
+        # 6) Behaviour / device checks
         if ctx.behaviour_score > 1.5 or not ctx.trusted_device:
             reason = "Unusual behaviour or untrusted device detected."
             result = DecisionResult(
                 decision=Decision.WARN,
                 reason=reason,
+                reason_id="QWG_V3_BEHAVIOUR_OR_DEVICE_RISK",
                 cooldown_seconds=p.cooldown_seconds_warn,
             )
             self._emit_adaptive(ctx, Decision.WARN, reason, severity=0.6)
             return result
 
-        # 7) Default: allow  (no adaptive event – considered "healthy" traffic)
+        # 7) Default: allow
         return DecisionResult(
             decision=Decision.ALLOW,
             reason="No policy or risk rule violated.",
+            reason_id="QWG_V3_HEALTHY_ALLOW",
         )
 
     # ------------------------------------------------------------------ #
@@ -269,15 +268,9 @@ class DecisionEngine:
         """
         v3 wrapper around evaluate_transaction().
 
-        Returns a QWG v3 verdict envelope:
-        - schema_version="v3"
-        - explicit verdict_type: allow / deny / escalate
-        - stable reason_id
-        - deterministic context_hash
-
         IMPORTANT:
-        - This does NOT change decision logic.
-        - It only wraps the existing DecisionResult.
+        - does NOT change decision logic
+        - returns deterministic, glass-box verdict envelope
         """
         v3_context = self._build_v3_context(ctx)
         context_hash = compute_context_hash(v3_context)
@@ -290,9 +283,11 @@ class DecisionEngine:
                 self.reason_id = reason_id
                 self.reasons = None
 
+        reason_id = result.reason_id or self._map_reason_id_fallback(result)
+
         decision_like = _DecisionLike(
             outcome=self._map_outcome(result.decision),
-            reason_id=self._map_reason_id(result),
+            reason_id=reason_id,
         )
 
         return to_v3_verdict(decision_like, context_hash)
