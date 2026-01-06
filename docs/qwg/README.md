@@ -1,9 +1,18 @@
 # QWG Documentation Index
 
-- **QWG v2 docs:** `QWG_V2.md` (historical reference)
-- **QWG v3 docs:** `QWG_V3.md` (current glass-box contract)
+This folder contains the official documentation for **Quantum Wallet Guard (QWG)**.
+
+## Versions
+
+- **v3 (current, authoritative)**  
+  Glass-box contract, test-backed, and auditable.  
+  → `v3/QWG_V3.md`
+
+- **v2 (legacy / historical reference)**  
+  Pre–glass-box documentation kept for context only.  
+  → `v2/`
 
 ## Rule
 
-Docs must describe **what exists and is proven by tests**.
-If it isn't implemented and test-proven, it doesn't belong in docs yet.
+Only **v3 documentation** reflects the current security guarantees.  
+If something is not described in v3 **and enforced by tests**, it is not considered part of the active security model.
