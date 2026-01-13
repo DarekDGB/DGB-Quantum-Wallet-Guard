@@ -106,4 +106,4 @@ Current state:
 - `qwg.v3.verdict`: 100%
 
 ---
-© 2026 DarekDGB
+© 2025 DarekDGB
