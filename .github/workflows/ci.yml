@@ -42,4 +42,4 @@ jobs:
 
       - name: Run tests (coverage gated on v3 surface)
         run: |
-          pytest --cov=qwg.v3 --cov-fail-under=90 -q
+          pytest --cov=qwg.v3 --cov-report=term-missing --cov-fail-under=90 -q
