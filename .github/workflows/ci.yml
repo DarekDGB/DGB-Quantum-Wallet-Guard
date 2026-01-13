@@ -1,4 +1,4 @@
-name: CI
+name: QWG Tests (v3)
 
 on:
   push:
@@ -6,10 +6,17 @@ on:
   pull_request:
     branches: ["main"]
 
+permissions:
+  contents: read
+
 jobs:
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
 
     steps:
       - name: Check out repository
@@ -18,7 +25,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
           cache: "pip"
 
       - name: Upgrade pip
@@ -31,8 +38,8 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          pip install pytest
+          pip install pytest pytest-cov
 
-      - name: Run tests
+      - name: Run tests (coverage gated on v3 surface)
         run: |
-          pytest
+          pytest --cov=qwg.v3 --cov-fail-under=90 -q
