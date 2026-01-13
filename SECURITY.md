@@ -1,24 +1,79 @@
-# Security Policy
+# 🔐 Security Policy — Quantum Wallet Guard (QWG)
 
-**Project:** DGB Quantum Wallet Guard (QWG)  
-**Author:** DarekDGB  
+**Repository:** DGB-Quantum-Wallet-Guard  
+**Maintainer:** DarekDGB  
 **License:** MIT
 
-## Reporting a Vulnerability
+---
 
-If you believe you’ve found a security vulnerability:
+## Security model
 
-1. **Do not open a public issue with exploit details.**
-2. Prefer using **GitHub Security Advisories** (private reporting), if available.
-3. If private reporting is not available, open a GitHub issue with **minimal details** and clearly mark it as **SECURITY**.
+QWG is a **local wallet defense layer** that produces **deterministic, auditable verdicts**.
 
-## What to include
+It does NOT:
+- modify blockchain consensus
+- sign transactions
+- broadcast network messages
 
-- A clear description of the issue
-- Impact assessment (what an attacker could do)
-- Steps to reproduce (safe / non-destructive if possible)
-- Any logs or screenshots that help confirm the issue
+All effects are local.
 
-## Coordinated disclosure
+---
 
-This repo aims to fix validated security issues quickly and transparently, but without publishing weaponized details before a patch exists.
+## Contract surface
+
+Authoritative v3 surface:
+- `qwg.v3.context_hash`
+- `qwg.v3.verdict`
+
+These modules must remain:
+- deterministic
+- side-effect free
+- coverage-gated
+
+---
+
+## Non-negotiable invariants
+
+1. Determinism (same inputs → same outputs)
+2. No hidden authority
+3. Stable reason identifiers
+4. Fail-fast on invalid input
+5. Optional integrations must not affect verdicts
+
+---
+
+## Testing & CI
+
+CI enforces:
+
+```
+pytest --cov=qwg.v3 --cov-fail-under=90 -q
+```
+
+Security-sensitive changes require tests.
+
+---
+
+## Vulnerability reporting
+
+- Prefer GitHub Security Advisories
+- Or contact **@DarekDGB** on GitHub
+
+Please include reproduction steps and impact assessment.
+
+---
+
+## Out of scope
+
+- DigiByte consensus vulnerabilities
+- mining or protocol attacks
+- unrelated UI issues
+
+---
+
+## Disclaimer
+
+Software is provided **as-is**, without warranty.
+
+---
+© 2026 DarekDGB
