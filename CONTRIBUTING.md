@@ -1,120 +1,160 @@
 # Contributing to Quantum Wallet Guard (QWG)
 
-**Quantum Wallet Guard (QWG)** is the *user-side protection layer* of the DigiByte Quantum Shield.  
-It provides behavioural analysis, PQC-ready transaction verification, rule-based defence,  
-and integrates with ADN v2 and Guardian Wallet.
+**Quantum Wallet Guard (QWG)** is the *user-side enforcement and decision layer* of the DigiByte Quantum Shield.
 
-QWG is a **reference architecture**.  
-Contributions must **strengthen user safety**, never weaken it.
+QWG v3 is a **deterministic, glass-box security component** designed to protect wallets from
+high-risk transactions, hostile environments, and unsafe execution paths.
+
+> QWG is security-critical infrastructure.  
+> Contributions must **strengthen user safety**, never weaken it.
+
+---
+
+## Scope & Authority (Important)
+
+QWG is **user-side only**.
+
+It:
+- evaluates risk
+- applies explicit policy rules
+- returns immutable **verdicts** (`allow / deny / escalate`)
+
+It does **not**:
+- sign transactions
+- execute transactions
+- modify consensus rules
+- act as a wallet UI
+
+QWG v3 exposes a **strict contract surface** (`qwg.v3`) that is:
+- deterministic
+- test-enforced
+- audit-friendly
+
+All contributions must respect this boundary.
 
 ---
 
 ## ✅ What Contributions Are Welcome
 
-### ✔️ 1. Behavioural & Heuristic Improvements
-- new anomaly detectors  
-- transaction pattern classifiers  
-- better fee sanity logic  
-- expanded rule sets  
+### ✔️ 1. Verdict Logic & Policy Improvements
+- clearer verdict classification
+- improved reason_id precision
+- stricter fail-closed handling
+- additional deterministic policy rules
 
-### ✔️ 2. PQC Extensions
-- improvements to signature adapters  
-- support for new PQC schemes (Falcon / Dilithium variants)  
-- performance and verification refinements  
+### ✔️ 2. Determinism & Safety Hardening
+- stricter input validation
+- canonicalization improvements
+- immutability guarantees
+- context_hash stability improvements
 
-### ✔️ 3. Defence Logic & Runtime Enhancements
-- smarter guard_runtime strategies  
-- additional defence conditions  
-- improved integration with ADNv2 playbooks  
+### ✔️ 3. Legacy Engine Improvements (Non-Authoritative)
+- internal refactors (no behavior drift)
+- bug fixes covered by tests
+- performance optimizations that preserve determinism
 
-### ✔️ 4. Guardian Wallet Integration
-- better warnings or UX signals  
-- improved prompt structures  
-- new classification categories  
+> ⚠️ Legacy logic must **never** expand authority or change contract semantics.
 
-### ✔️ 5. Testing & Simulation
-- unit tests  
-- behavioural simulations  
-- fuzz tests  
-- mock ADN scenarios  
+### ✔️ 4. Testing & Verification
+- unit tests
+- edge-case coverage
+- regression tests
+- determinism / immutability invariants
 
-### ✔️ 6. Documentation Improvements
-Clarity, architecture diagrams, examples, explanations.
+Coverage gates **must not be lowered**.
+
+### ✔️ 5. Documentation
+- architecture clarification
+- diagrams
+- examples
+- contract explanations
+
+Docs must match **actual code behavior**.
 
 ---
 
 ## ❌ What Will Not Be Accepted
 
-### 🚫 1. Removing or Weakening Defence Logic
-QWG **must never**:
+### 🚫 1. Weakening Security Guarantees
+QWG must never:
+- relax fail-closed behavior
+- remove validation checks
+- reduce auditability
+- introduce silent fallbacks
 
-- remove critical checks  
-- weaken behavioural analysis  
-- silence warnings  
-- reduce rule coverage  
+### 🚫 2. Consensus, Node, or Network Logic
+Do **not** add:
+- block validation logic
+- mempool logic
+- network state assumptions
 
-Any removal of core protections will be **rejected immediately**.
+### 🚫 3. Execution or Signing Authority
+QWG must never:
+- sign transactions
+- broadcast transactions
+- control keys
 
-### 🚫 2. Adding Consensus or Node Logic
-QWG is *user-side only*.  
-It must not:
+### 🚫 4. Non-Deterministic Behavior
+No:
+- timestamps
+- randomness
+- network calls
+- hidden global state
 
-- change network rules  
-- modify block or mempool logic  
-- become a validator or signing authority  
+Same input **must always** produce the same verdict.
 
-### 🚫 3. Turning QWG Into a Wallet UI  
-QWG **feeds Guardian Wallet**, but is not a UI itself.  
-Do NOT add:
+### 🚫 5. Black-Box or Opaque AI
+No unexplained models.
 
-- screens  
-- UX components  
-- app logic  
+All logic must be:
+- explainable
+- testable
+- auditable
 
-### 🚫 4. Black-Box or Unexplained AI
-All defence decisions must be:
-
-- explainable  
-- auditable  
-- deterministic  
-
-No opaque models will be accepted.
-
-### 🚫 5. Security-reducing dependencies
-No unsafe libraries or frameworks.
+### 🚫 6. Security-Reducing Dependencies
+No unsafe, heavy, or opaque dependencies.
 
 ---
 
-## 🧱 Design Principles
+## 🧱 Design Principles (Non-Negotiable)
 
-1. **User First** — protect users by default.  
-2. **Fail-Safe** — on uncertainty → warn or block.  
-3. **Explainability** — every action has a reason.  
-4. **Determinism** — same input → same output.  
-5. **Zero-Trust** — environment is treated as potentially hostile.  
-6. **Modularity** — each defence lives in its own module.  
-7. **Interoperability** — works cleanly with ADN, Guardian Wallet, and Adamantine.
+1. **User Safety First**
+2. **Fail-Closed by Default**
+3. **Determinism**
+4. **Explainability**
+5. **Immutability**
+6. **No Hidden Authority**
+7. **Minimal Trusted Computing Base**
+8. **Clear Contract Boundaries**
 
 ---
 
 ## 🔄 Pull Request Expectations
 
-Your PR should include:
+Each PR must include:
+- a clear explanation of *what* changed
+- justification of *why* this improves security
+- tests for any logic change
+- no contract surface breakage
+- no authority expansion
+- documentation updates if behavior changes
 
-- a clear explanation of your change  
-- motivation: why this improves QWG  
-- tests when adding or modifying logic  
-- no breaking of folder structure  
-- no removal of architectural components  
-- updated documentation if needed  
+If CI fails, the PR is **not acceptable**.
 
-The architect (@DarekDGB) reviews **direction**.  
-Developers review **technical implementation**.
+The architect (**@DarekDGB**) reviews:
+- direction
+- security posture
+- architectural integrity
+
+Contributors review:
+- implementation quality
+- test coverage
+- clarity
 
 ---
 
 ## 📝 License
 
-By contributing, you agree that your contributions are licensed under the MIT License.
+By contributing, you agree that your contributions are licensed under the **MIT License**.
 
 © 2025 **DarekDGB**
