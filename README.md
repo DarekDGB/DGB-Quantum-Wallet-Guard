@@ -162,4 +162,4 @@ See **`SECURITY.md`** for vulnerability disclosure and security guarantees.
 
 ## License
 
-MIT License © 2026 **DarekDGB**
+MIT License © 2025 **DarekDGB**
