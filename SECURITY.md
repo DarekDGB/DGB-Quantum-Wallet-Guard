@@ -76,4 +76,4 @@ Please include reproduction steps and impact assessment.
 Software is provided **as-is**, without warranty.
 
 ---
-© 2026 DarekDGB
+© 2025 DarekDGB
