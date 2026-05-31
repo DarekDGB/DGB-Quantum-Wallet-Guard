@@ -28,7 +28,7 @@ Authoritative v3 surface:
 These modules must remain:
 - deterministic
 - side-effect free
-- coverage-gated
+- full-package coverage-gated
 
 ---
 
@@ -47,7 +47,7 @@ These modules must remain:
 CI enforces:
 
 ```
-pytest --cov=qwg.v3 --cov-fail-under=90 -q
+pytest --cov=qwg --cov-report=term-missing --cov-fail-under=100 -q
 ```
 
 Security-sensitive changes require tests.
