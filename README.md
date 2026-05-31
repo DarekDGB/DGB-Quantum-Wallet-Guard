@@ -8,7 +8,7 @@
 
 **Author:** DarekDGB  
 **License:** MIT  
-**Status:** QWG v3 complete — glass-box, deterministic, test-locked
+**Status:** QWG v3.0.0 stabilisation complete — glass-box, deterministic, full-package test-locked
 
 ---
 
@@ -53,7 +53,7 @@ QWG v3 introduces a **strict, test-backed contract surface** without changing th
 - No authority creep
 - Fail-closed semantics
 
-All guarantees are enforced by CI with **100% coverage on the v3 surface**.
+All guarantees are enforced by CI with **100% coverage across the full `qwg` package**.
 
 ---
 
@@ -128,7 +128,7 @@ src/qwg/
 └─ ...                    # internal helpers
 ```
 
-Only `qwg.v3` is coverage-gated and contract-locked.
+The full `qwg` package is coverage-gated and contract-locked.
 
 ---
 
@@ -138,6 +138,7 @@ Only `qwg.v3` is coverage-gated and contract-locked.
 - **QWG v2 (legacy reference):** `docs/qwg/v2/`
 - **Docs index:** `docs/qwg/README.md`
 - **Security policy:** `SECURITY.md`
+- **Changelog:** `CHANGELOG.md`
 
 ---
 
@@ -148,7 +149,7 @@ This repository enforces:
 - reason_id stability
 - immutability invariants
 - type safety & fail-fast guards
-- **100% coverage on `qwg.v3`**
+- **100% coverage across `qwg`**
 
 If CI fails, the security contract is considered broken.
 
