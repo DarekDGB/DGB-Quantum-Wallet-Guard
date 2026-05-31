@@ -1,109 +1,153 @@
-# Quantum Wallet Guard (QWG) — v3 (Glass-Box Contract)
+# Quantum Wallet Guard (QWG) — v3.0.0 Stabilisation Contract
 
 **Author:** DarekDGB  
-**Status:** v3 contract surface is deterministic + test-locked  
-**Scope of truth:** `qwg.v3/*`
+**Status:** v3.0.0 stabilisation surface is deterministic, auditable, and full-package test-locked  
+**Scope of truth:** `qwg` package, with `qwg.v3/*` as the authoritative verdict surface
 
 ---
 
-## v3 goals
+## Purpose
 
-QWG v3 provides a **glass-box**, **deterministic**, **auditable** output surface.
+Quantum Wallet Guard is the wallet-side Shield layer that evaluates wallet and transaction risk before a wallet proceeds.
 
-It guarantees:
-- same inputs → same outputs
+QWG does **not** sign, broadcast, or move funds. It returns explicit, deterministic decisions and v3 verdict envelopes that downstream wallet code can enforce.
+
+---
+
+## v3.0.0 stabilisation goals
+
+QWG v3.0.0 stabilisation locks the repository to the same baseline standard as the Shield v3 roadmap:
+
+- deterministic context hashing
+- immutable v3 verdict envelope
 - stable reason identifiers
-- canonical, reproducible context hashing
-- zero hidden authority
+- explicit allow / deny / escalate semantics
+- optional Adaptive Core bridge that cannot affect wallet verdicts
+- full-package 100% coverage gate
+- no hidden authority
+- no silent behavior changes
 
 ---
 
-## v3 outputs: QWGv3Verdict
+## v3 verdict output
 
-The v3 surface returns a stable structure:
+The authoritative v3 wrapper returns `QWGv3Verdict`:
 
-- `verdict_type` (ALLOW / WARN / DENY)
-- `reason_id` (stable, regression-locked)
-- `context_hash` (canonical hash of request context)
+- `schema_version = "v3"`
+- `verdict_type = allow | deny | escalate`
+- `reason_id = stable machine-readable reason identifier`
+- `context_hash = deterministic SHA-256 context hash`
+- `reasons = optional extra reason identifiers`
 
 Verdict meaning:
-- **ALLOW** – safe to proceed
-- **WARN** – elevated risk
-- **DENY** – execution must not proceed
+
+- **allow** — no QWG policy or risk rule was violated
+- **deny** — the wallet action must not proceed
+- **escalate** — the wallet action requires warning, delay, or extra authentication
 
 ---
 
-## Deterministic hashing
+## Deterministic context hashing
 
 Function:
-```
+
+```python
 compute_context_hash(context: dict) -> str
 ```
 
 Rules:
-- deterministic
+
+- input must be a dictionary
+- keys are sorted before hashing
+- compact JSON separators are used
 - no timestamps
 - no randomness
-- canonical serialization
-- fail-fast on invalid input types
+- no network calls
+- same input always produces the same hash
 
 ---
 
 ## Verdict adapter
 
 Function:
-```
+
+```python
 to_v3_verdict(decision, context_hash) -> QWGv3Verdict
 ```
 
 Rules:
-- explicit mapping
-- no side effects
-- no authority escalation
+
+- adapter is structural only
+- no policy evaluation
+- no decision logic
+- no execution authority
+- missing required decision attributes fail fast
 
 ---
 
 ## Engine wrapper entrypoint
 
 Function:
-```
+
+```python
 DecisionEngine.evaluate_transaction_v3(ctx)
 ```
 
 Responsibilities:
-- evaluate legacy engine behavior
-- compute deterministic context_hash
-- return v3 verdict
+
+- build deterministic v3 context
+- compute context hash
+- evaluate existing QWG policy engine
+- map internal decisions into v3 verdict semantics
+- return an immutable verdict envelope
 
 Non-responsibilities:
+
 - no signing
 - no network I/O
-- no state mutation
+- no fund movement
+- no autonomous execution
 
 ---
 
 ## Adaptive Core boundary
 
-Adaptive Core integration:
-- is optional
-- is a side-effect only
-- must not influence verdict or context_hash
+Adaptive Core integration is optional and best-effort only.
 
-The v3 verdict is authoritative.
+It may emit threat/event information outward, but it must never:
+
+- change the QWG decision
+- change the v3 verdict
+- change the context hash
+- raise into wallet decision flow
+- become an execution authority
+
+---
+
+## CI / test lock
+
+The v3.0.0 stabilisation gate covers the full package, not only `qwg.v3`:
+
+```bash
+pytest --cov=qwg --cov-report=term-missing --cov-fail-under=100 -q
+```
+
+Required state:
+
+- all tests pass
+- total package coverage is 100%
+- every source module reports 100% coverage
+- security-sensitive branches have explicit tests
 
 ---
 
-## Tests
+## Current v3.0.0 status
 
-CI enforces coverage on the v3 surface:
-
-```
-pytest --cov=qwg.v3 --cov-report=term-missing --cov-fail-under=90 -q
-```
-
-Current state:
-- `qwg.v3.context_hash`: 100%
-- `qwg.v3.verdict`: 100%
+- `pyproject.toml` version: `3.0.0`
+- full `qwg` package coverage gate: `100%`
+- package typing marker: `src/qwg/py.typed`
+- v3.1.0 manifest / receipt / orchestrator hardening: not included in this stabilisation PR
 
 ---
+
 © 2025 DarekDGB
