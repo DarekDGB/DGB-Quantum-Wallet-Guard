@@ -33,7 +33,7 @@ def build_dormant_key_sweep_scenario() -> List[SweepEvent]:
 
 
 def main() -> None:
-    start_time = datetime.datetime.utcnow()
+    start_time = datetime.datetime.now(datetime.UTC)
     risk_ctx = RiskContext()
     engine = QWGEngine(risk_context=risk_ctx)
     scenario = build_dormant_key_sweep_scenario()
