@@ -100,7 +100,7 @@ result = engine.process_sweep_event(
     utxos_moved=5,
     amount_dgb=4200,
     destination="X1",
-    timestamp=datetime.utcnow()
+    timestamp=datetime.now(timezone.utc)
 )
 
 print(result.qrs_score, result.risk_level, result.pattern)
@@ -286,4 +286,4 @@ MIT — free for all chains, free for DigiByte ecosystem.
 
 For technical questions, integration help, or contributions:
 
-**@Darek_DGB** on X  
+**@Darek_DGB** on X
