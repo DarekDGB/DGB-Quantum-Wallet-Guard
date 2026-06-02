@@ -1,7 +1,7 @@
-# Quantum Wallet Guard (QWG) — v3.0.0 Stabilisation Contract
+# Quantum Wallet Guard (QWG) — v3.1.0 Foundation Hardening Contract
 
 **Author:** DarekDGB  
-**Status:** v3.0.0 stabilisation surface is deterministic, auditable, and full-package test-locked  
+**Status:** v3.1.0 foundation-hardening surface is deterministic, auditable, and full-package test-locked  
 **Scope of truth:** `qwg` package, with `qwg.v3/*` as the authoritative verdict surface
 
 ---
@@ -14,9 +14,9 @@ QWG does **not** sign, broadcast, or move funds. It returns explicit, determinis
 
 ---
 
-## v3.0.0 stabilisation goals
+## v3.1.0 foundation-hardening goals
 
-QWG v3.0.0 stabilisation locks the repository to the same baseline standard as the Shield v3 roadmap:
+QWG v3.1.0 foundation hardening preserves the Shield Contract v3 surface while strengthening release discipline, timestamp handling, documentation alignment, and full-package proof gates:
 
 - deterministic context hashing
 - immutable v3 verdict envelope
@@ -126,7 +126,7 @@ It may emit threat/event information outward, but it must never:
 
 ## CI / test lock
 
-The v3.0.0 stabilisation gate covers the full package, not only `qwg.v3`:
+The v3.1.0 foundation-hardening gate covers the full package, not only `qwg.v3`:
 
 ```bash
 pytest --cov=qwg --cov-report=term-missing --cov-fail-under=100 -q
@@ -141,12 +141,12 @@ Required state:
 
 ---
 
-## Current v3.0.0 status
+## Current v3.1.0 status
 
-- `pyproject.toml` version: `3.0.0`
+- `pyproject.toml` version: `3.1.0`
 - full `qwg` package coverage gate: `100%`
 - package typing marker: `src/qwg/py.typed`
-- v3.1.0 manifest / receipt / orchestrator hardening: not included in this stabilisation PR
+- later manifest / verdict / receipt / proof-pack hardening: promoted to the next Shield roadmap phase
 
 ---
 
