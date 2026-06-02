@@ -4,11 +4,11 @@
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-QWG%20v3%20locked-success.svg)](#)
+[![Status](https://img.shields.io/badge/status-QWG%20v3.1.0%20hardened-success.svg)](#)
 
 **Author:** DarekDGB  
 **License:** MIT  
-**Status:** QWG v3.0.0 stabilisation complete — glass-box, deterministic, full-package test-locked
+**Status:** QWG v3.1.0 foundation hardening complete — glass-box, deterministic, full-package test-locked
 
 ---
 
