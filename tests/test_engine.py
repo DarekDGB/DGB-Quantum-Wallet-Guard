@@ -20,7 +20,7 @@ def make_ctx(**overrides) -> RiskContext:
         behaviour_score=1.0,
         device_id="device-1",
         trusted_device=True,
-        created_at=datetime.datetime.utcnow(),
+        created_at=datetime.datetime.now(datetime.UTC),
     )
     base.update(overrides)
     return RiskContext(**base)
