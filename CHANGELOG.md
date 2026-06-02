@@ -1,5 +1,26 @@
 # Changelog
 
+## v3.1.0 — Shield Foundation Hardening
+
+### Changed
+
+- Bumped package version from `3.0.0` to `3.1.0`.
+- Updated README and v3 documentation to describe the v3.1.0 foundation-hardening release.
+- Updated timestamp handling to use timezone-aware UTC where runtime examples and bridge paths need current UTC timestamps.
+- Preserved the Shield Contract v3 surface without introducing a new contract version.
+
+### Verification
+
+- Confirmed CI coverage gate remains locked at 100%.
+- Verified `46 passed`.
+- Verified `222 statements`, `0 missed`, `100% coverage`.
+
+### Boundary
+
+This release is foundation hardening only. It strengthens release metadata, documentation, timestamp handling, and CI proof discipline.
+
+It does not implement the later manifest / verdict / receipt / proof-pack hardening layer, which is promoted to the next Shield roadmap phase.
+
 ## v3.0.0 — Shield v3 Stabilisation
 
 ### Changed
