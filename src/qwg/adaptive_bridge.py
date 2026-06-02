@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def emit_adaptive_event(
@@ -57,7 +57,7 @@ def emit_adaptive_event(
     # ------------------------------------------------------------------ #
     # We do NOT import ThreatPacket directly – we just mirror its fields
     # so any adaptive core can wrap this dict into a real ThreatPacket.
-    now_iso = datetime.utcnow().isoformat() + "Z"
+    now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     threat_packet: Dict[str, Any] = {
         "source_layer": "quantum_wallet_guard",
