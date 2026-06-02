@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class RiskLevel(str, Enum):
@@ -48,7 +48,7 @@ class RiskContext:
     # Signals from Sentinel AI v2 / chain
     sentinel_level: RiskLevel = RiskLevel.NORMAL
 
-    # Signals from DQSN (network-wide score 0.0–1.0)
+    # Signals from DQSN (network-wide score 0.0â1.0)
     dqs_network_score: float = 0.0
 
     # Signals from ADN v2 (node-local)
@@ -65,7 +65,7 @@ class RiskContext:
     trusted_device: bool = True
 
     # Metadata
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     # ------------------------------------------------------------------ #
     # Helper methods (used by the engine, but also handy for tests)
