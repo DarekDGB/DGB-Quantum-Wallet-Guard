@@ -1,166 +1,248 @@
-# 🔐 DGB Quantum Wallet Guard (QWG)
+# 🛡️ DGB Quantum Wallet Guard v3.2.0
 
-[![CI](https://github.com/DarekDGB/DGB-Quantum-Wallet-Guard/actions/workflows/ci.yml/badge.svg)](https://github.com/DarekDGB/DGB-Quantum-Wallet-Guard/actions)
-[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](#)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/status-QWG%20v3.1.0%20hardened-success.svg)](#)
+![Tests](https://github.com/DarekDGB/DGB-Quantum-Wallet-Guard/actions/workflows/tests.yml/badge.svg)
+![Coverage 100%](https://img.shields.io/badge/coverage-100%25-brightgreen)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+![Status](https://img.shields.io/badge/status-ORCHESTRATOR--BOUNDARY--LOCKED-critical)
 
-**Author:** DarekDGB  
-**License:** MIT  
-**Status:** QWG v3.1.0 foundation hardening complete — glass-box, deterministic, full-package test-locked
+**Deterministic Wallet Runtime Guard • Transaction / Key Safety Evidence**  
+**Architecture & Implementation by @DarekDGB — MIT Licensed**
 
 ---
 
-## Overview
+## Purpose
 
-**Quantum Wallet Guard (QWG)** is a **deterministic, policy-driven wallet defense layer** designed to protect cryptocurrency wallets from high-risk transactions, abnormal behavior, and hostile runtime conditions.
+**DGB Quantum Wallet Guard v3.2.0** is the deterministic wallet-runtime safety layer of the **DigiByte Quantum Shield**.
 
-QWG follows a strict **glass-box security philosophy**:
+QWG evaluates wallet runtime context, transaction safety context, and quantum/post-quantum risk indicators before wallet execution continues.
 
-> Every decision is explicit, deterministic, auditable, and enforced by tests.  
-> No opaque models. No hidden authority. No silent behavior changes.
+QWG may produce evidence for:
 
----
+- unsafe transaction context
+- weak or mismatched wallet runtime posture
+- quantum-risk escalation
+- unsafe signing-path conditions
+- defensive wallet lockdown conditions
+- Shield Orchestrator aggregation
 
-## What QWG Is (and Is Not)
+QWG does **not**:
 
-### QWG **is**
-- A wallet-side **decision and enforcement policy engine**
-- Deterministic and explainable by construction
-- Safe to audit, reason about, and integrate with higher layers
-- Designed for long-term security stability
+- sign transactions
+- broadcast transactions
+- hold, derive, or access private keys
+- modify DigiByte consensus
+- approve AdamantineOS execution directly
+- override the Shield Orchestrator
+- act as final execution authority
 
-### QWG **is not**
-- An autonomous AI
-- A black-box risk scorer
-- A signing or execution authority
-- A component that can move funds
-
-QWG **never signs transactions** and **never executes transfers**.  
-It only evaluates risk and returns **explicit verdicts**.
-
----
-
-## QWG v3 — Glass-Box Contract
-
-QWG v3 introduces a **strict, test-backed contract surface** without changing the underlying decision behavior.
-
-### Core guarantees
-- Deterministic `context_hash`
-- Stable `reason_id` identifiers
-- Immutable verdict objects
-- No authority creep
-- Fail-closed semantics
-
-All guarantees are enforced by CI with **100% coverage across the full `qwg` package**.
+QWG is a **wallet safety evidence component**.
 
 ---
 
-## Architecture Position
+## Position in the DigiByte Quantum Shield
 
-```
-┌──────────────────────────────┐
-│        Wallet Runtime        │
-│  (UI / UX / User Approval)   │
-└──────────────▲───────────────┘
-               │ verdict
-┌──────────────┴───────────────┐
-│        QWG v3 Contract       │
-│  Deterministic verdict gate  │
-│  (ALLOW / DENY / ESCALATE)   │
-└──────────────▲───────────────┘
-               │ risk context
-┌──────────────┴───────────────┐
-│     Legacy Decision Engine   │
-│   (policies, scoring, rules) │
-└──────────────────────────────┘
+```text
+┌───────────────────────────────────────────────┐
+│              AdamantineOS                     │
+│   Consumes only Shield Orchestrator receipt   │
+└───────────────────────────────────────────────┘
+                       ▲
+                       │ deterministic receipt only
+┌───────────────────────────────────────────────┐
+│          Shield Orchestrator v3               │
+│   Final Shield aggregation + receipt boundary │
+└───────────────────────────────────────────────┘
+                       ▲
+                       │ component verdict evidence
+┌───────────────────────────────────────────────┐
+│        Quantum Wallet Guard v3                │
+│   Wallet runtime / transaction safety gate    │
+└───────────────────────────────────────────────┘
+                       ▲
+                       │ wallet + tx + risk context
+┌───────────────────────────────────────────────┐
+│        Wallet Runtime / Signing Flow          │
+│   Local context only — no key custody in QWG  │
+└───────────────────────────────────────────────┘
 ```
 
-QWG v3 is the **authoritative verdict surface**.  
-Legacy logic may evolve, but **must not violate the v3 contract**.
+QWG evaluates wallet safety evidence.
+
+The Shield Orchestrator is the final Shield receipt boundary for AdamantineOS handoff.
 
 ---
 
-## v3 Verdict Output
+## Core Mission
 
-QWG v3 returns an immutable verdict envelope:
+### Deterministic Wallet Safety Evaluation
 
-- `schema_version = "v3"`
-- `verdict_type`: `allow | deny | escalate`
-- `reason_id`: stable machine-readable identifier
-- `context_hash`: deterministic SHA-256 hash
-- `reasons` (optional): additional reason identifiers
+QWG converts validated wallet runtime and transaction safety context into deterministic verdict evidence.
 
-### Verdict semantics
-- **allow** → execution may proceed (subject to wallet rules)
-- **deny** → execution must not proceed
-- **escalate** → execution pauses for warnings, delays, or extra authentication
+Same valid input must always produce the same output.
+
+### Fail-Closed by Default
+
+QWG must reject unsafe input conditions, including:
+
+- malformed wallet context
+- malformed transaction context
+- unsupported contract versions
+- unknown strict fields
+- duplicate or conflicting authority claims
+- unsafe numeric values
+- oversized payloads
+- unserialisable data
+- ambiguity affecting authority or auditability
+
+### Evidence Only
+
+QWG output is not final execution authority.
+
+QWG verdict data must be treated as component evidence for Shield orchestration.
+
+Raw QWG output must not be consumed by AdamantineOS as final signing, execution, or approval authority.
 
 ---
 
-## Determinism & Auditability
+## v3.2.0 Manifest / Verdict Lock
 
-QWG v3 anchors decisions using a **pure hashing function**:
+QWG v3.2.0 includes the Shield manifest / registry / canonical verdict lock required before AdamantineOS integration.
 
-- JSON-serializable input
-- Sorted keys
-- No timestamps
-- No randomness
-- No network calls
+The v3.2.0 lock enforces:
 
-This guarantees:
-- reproducible outcomes
-- reliable regression testing
-- clean audit trails
+- component identity discipline
+- contract version discipline
+- stable reason ID registration
+- stable evidence-family registration
+- deterministic canonical verdict data
+- fail-closed rejection of malformed verdict inputs
+- Orchestrator-first handoff assumptions
+
+QWG remains evidence-only.
+
+It cannot:
+
+- sign
+- broadcast
+- hold keys
+- expand authority
+- override the Shield Orchestrator
+- approve AdamantineOS execution directly
+
+See:
+
+- `docs/v3/MANIFEST.md`
+- `docs/v3/REASON_IDS.md`
+- `docs/v3/EVIDENCE_FAMILIES.md`
+- `docs/v3/TEST_MATRIX.md`
+- `docs/v3/PROOF_PACK.md`
 
 ---
 
 ## Repository Layout
 
-```
-src/qwg/
-├─ v3/                    # authoritative contract surface
-│  ├─ context_hash.py
-│  └─ verdict.py
-├─ engine.py              # legacy decision logic
-├─ adapters.py            # v3 adapters
-└─ ...                    # internal helpers
+```text
+DGB-Quantum-Wallet-Guard/
+├─ README.md
+├─ LICENSE
+├─ CHANGELOG.md
+├─ SECURITY.md
+├─ docs/
+│  └─ v3/
+│     ├─ EVIDENCE_FAMILIES.md
+│     ├─ MANIFEST.md
+│     ├─ PROOF_PACK.md
+│     ├─ REASON_IDS.md
+│     └─ TEST_MATRIX.md
+├─ tests/
+│  └─ test_v3_2_manifest_verdict_lock.py
+└─ src/
+   └─ qwg/
+      └─ contracts/
+         ├─ __init__.py
+         └─ v3_2_lock.py
 ```
 
-The full `qwg` package is coverage-gated and contract-locked.
+---
+
+## Tests & Security Guarantees
+
+Security and regression tests enforce:
+
+- deterministic wallet-safety behavior
+- fail-closed behavior
+- strict manifest discipline
+- stable reason IDs
+- stable evidence families
+- canonical verdict lock behavior
+- no hidden authority
+- no silent fallback
+- no key custody
+- no Orchestrator bypass assumption
+
+Tests define truth.
+
+No release is locked unless CI proves the contract surface.
+
+---
+
+## v3.2.0 Status
+
+QWG is aligned with the Shield v3.2.0 integration-boundary track:
+
+- package metadata set to `3.2.0`
+- manifest / reason ID / evidence-family docs are present
+- v3.2.0 verdict lock tests are present
+- deterministic contract behavior is preserved
+- no consensus authority is added
+- no signing, broadcasting, key custody, or hidden execution authority is added
+- AdamantineOS must consume Shield through the Orchestrator receipt only
+
+Do **not** tag v3.2.0 until the final roadmap checklist, fresh ZIP audit, CI proof, and Red Team report are complete.
+
+---
+
+## Shield v3 Invariants
+
+QWG follows the Shield v3 baseline invariants:
+
+- **Deny-by-default** — anything not explicitly allowed is rejected.
+- **Fail-closed** — invalid, ambiguous, partial, or unsafe input is rejected.
+- **Deterministic execution** — same valid input must produce the same output.
+- **No silent fallback** — failures must surface as explicit reasoned rejections.
+- **No key custody** — QWG never holds, derives, signs with, or accesses private keys.
+- **Evidence-only output** — QWG evidence does not approve execution.
+- **Orchestrator-first handoff** — AdamantineOS receives Shield state only through the deterministic Orchestrator receipt.
+
+Any violation of these invariants is a security defect.
 
 ---
 
 ## Documentation
 
-- **QWG v3 (authoritative):** `docs/qwg/v3/QWG_V3.md`
-- **QWG v2 (legacy reference):** `docs/qwg/v2/`
-- **Docs index:** `docs/qwg/README.md`
-- **Security policy:** `SECURITY.md`
-- **Changelog:** `CHANGELOG.md`
+- Manifest: `docs/v3/MANIFEST.md`
+- Reason IDs: `docs/v3/REASON_IDS.md`
+- Evidence Families: `docs/v3/EVIDENCE_FAMILIES.md`
+- Test Matrix: `docs/v3/TEST_MATRIX.md`
+- Proof Pack: `docs/v3/PROOF_PACK.md`
 
 ---
 
-## Testing & CI
+## Contribution Policy
 
-This repository enforces:
-- deterministic behavior tests
-- reason_id stability
-- immutability invariants
-- type safety & fail-fast guards
-- **100% coverage across `qwg`**
+Rules:
 
-If CI fails, the security contract is considered broken.
-
----
-
-## Security
-
-See **`SECURITY.md`** for vulnerability disclosure and security guarantees.
+- No consensus-touching behavior.
+- No signing or broadcasting behavior.
+- No private-key custody behavior.
+- No AdamantineOS direct execution approval.
+- Deterministic wallet-safety evidence only.
+- Tests required for contract changes.
+- No bypass of the Shield Orchestrator receipt boundary.
 
 ---
 
 ## License
 
-MIT License © 2025 **DarekDGB**
+MIT License  
+© 2025 **DarekDGB**
