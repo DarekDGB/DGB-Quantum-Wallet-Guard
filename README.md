@@ -158,8 +158,9 @@ DGB-Quantum-Wallet-Guard/
 │  └─ test_v3_2_manifest_verdict_lock.py
 └─ src/
    └─ qwg/
-      └─ contracts/
-         ├─ __init__.py
+      └─ v3/
+         ├─ context_hash.py
+         ├─ verdict.py
          └─ v3_2_lock.py
 ```
 
