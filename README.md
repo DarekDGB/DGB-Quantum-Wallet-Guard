@@ -1,6 +1,6 @@
 # 🛡️ DGB Quantum Wallet Guard v3.2.0
 
-![Tests](https://github.com/DarekDGB/DGB-Quantum-Wallet-Guard/actions/workflows/tests.yml/badge.svg)
+![CI](https://github.com/DarekDGB/DGB-Quantum-Wallet-Guard/actions/workflows/ci.yml/badge.svg)
 ![Coverage 100%](https://img.shields.io/badge/coverage-100%25-brightgreen)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 ![Status](https://img.shields.io/badge/status-ORCHESTRATOR--BOUNDARY--LOCKED-critical)
