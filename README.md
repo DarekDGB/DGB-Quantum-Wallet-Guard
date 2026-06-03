@@ -131,11 +131,11 @@ It cannot:
 
 See:
 
-- `docs/v3/MANIFEST.md`
-- `docs/v3/REASON_IDS.md`
-- `docs/v3/EVIDENCE_FAMILIES.md`
-- `docs/v3/TEST_MATRIX.md`
-- `docs/v3/PROOF_PACK.md`
+- `docs/qwg/v3/MANIFEST.md`
+- `docs/qwg/v3/REASON_IDS.md`
+- `docs/qwg/v3/EVIDENCE_FAMILIES.md`
+- `docs/qwg/v3/TEST_MATRIX.md`
+- `docs/qwg/v3/PROOF_PACK.md`
 
 ---
 
@@ -148,12 +148,14 @@ DGB-Quantum-Wallet-Guard/
 ├─ CHANGELOG.md
 ├─ SECURITY.md
 ├─ docs/
-│  └─ v3/
-│     ├─ EVIDENCE_FAMILIES.md
-│     ├─ MANIFEST.md
-│     ├─ PROOF_PACK.md
-│     ├─ REASON_IDS.md
-│     └─ TEST_MATRIX.md
+│  └─ qwg/
+│     └─ v3/
+│        ├─ EVIDENCE_FAMILIES.md
+│        ├─ MANIFEST.md
+│        ├─ PROOF_PACK.md
+│        ├─ QWG_V3.md
+│        ├─ REASON_IDS.md
+│        └─ TEST_MATRIX.md
 ├─ tests/
 │  └─ test_v3_2_manifest_verdict_lock.py
 └─ src/
@@ -221,11 +223,11 @@ Any violation of these invariants is a security defect.
 
 ## Documentation
 
-- Manifest: `docs/v3/MANIFEST.md`
-- Reason IDs: `docs/v3/REASON_IDS.md`
-- Evidence Families: `docs/v3/EVIDENCE_FAMILIES.md`
-- Test Matrix: `docs/v3/TEST_MATRIX.md`
-- Proof Pack: `docs/v3/PROOF_PACK.md`
+- Manifest: `docs/qwg/v3/MANIFEST.md`
+- Reason IDs: `docs/qwg/v3/REASON_IDS.md`
+- Evidence Families: `docs/qwg/v3/EVIDENCE_FAMILIES.md`
+- Test Matrix: `docs/qwg/v3/TEST_MATRIX.md`
+- Proof Pack: `docs/qwg/v3/PROOF_PACK.md`
 
 ---
 
