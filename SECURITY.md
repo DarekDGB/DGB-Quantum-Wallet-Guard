@@ -1,79 +1,288 @@
-# 🔐 Security Policy — Quantum Wallet Guard (QWG)
+# Security Policy — DGB Quantum Wallet Guard
 
 **Repository:** DGB-Quantum-Wallet-Guard  
+**Component:** QWG v3 — Quantum Wallet Guard  
 **Maintainer:** DarekDGB  
 **License:** MIT
 
+This document defines the security policy and disclosure process for DGB Quantum Wallet Guard, with a focus on the **Shield v3.2.0 manifest / verdict boundary**.
+
 ---
 
-## Security model
+## Supported Versions
 
-QWG is a **local wallet defense layer** that produces **deterministic, auditable verdicts**.
+Only the current Shield v3 QWG surface is supported and security-maintained for new Shield work.
 
-It does NOT:
-- modify blockchain consensus
+| Component | Status |
+|---|---|
+| QWG v3.2.0 | ✅ Supported — current integration-boundary hardening surface |
+| Earlier v3.x | ✅ Supported only as historical baseline where applicable |
+| Older archived behavior | ❌ Unsupported |
+
+Legacy documentation may remain in the repository for historical reference, but it is **non-authoritative** for v3.2.0 security behavior.
+
+---
+
+## Security Model
+
+QWG is a **deterministic wallet-runtime safety evidence layer**.
+
+Security is enforced through:
+
+- strict input validation
+- deterministic wallet-safety evaluation
+- stable reason codes
+- stable evidence families
+- canonical context hashing
+- fail-closed behavior
+- no hidden authority
+- no key custody
+- tests for manifest / verdict behavior
+
+QWG is **consensus-neutral**.
+
+It does not:
+
+- alter DigiByte consensus rules
 - sign transactions
-- broadcast network messages
+- broadcast transactions
+- hold, derive, or access private keys
+- approve AdamantineOS execution directly
+- override the Shield Orchestrator
 
-All effects are local.
-
----
-
-## Contract surface
-
-Authoritative v3 surface:
-- `qwg.v3.context_hash`
-- `qwg.v3.verdict`
-
-These modules must remain:
-- deterministic
-- side-effect free
-- full-package coverage-gated
+QWG produces wallet-safety evidence only.
 
 ---
 
-## Non-negotiable invariants
+## Non-Negotiable Design Invariants
 
-1. Determinism (same inputs → same outputs)
-2. No hidden authority
-3. Stable reason identifiers
-4. Fail-fast on invalid input
-5. Optional integrations must not affect verdicts
+### 1. Fail-Closed by Default
+
+Any invalid, ambiguous, incomplete, unsafe, or malformed input must produce an explicit rejection path.
+
+Expected fail-closed behavior includes:
+
+- deterministic reject decision
+- explicit reason code
+- no silent fallback
+- no implicit allow
+- no authority escalation
+
+### 2. Determinism
+
+The same valid input must always produce the same output.
+
+Contract behavior must not depend on:
+
+- timestamps
+- randomness
+- environment state
+- network state
+- file-system state
+- dictionary iteration order
+- runtime-dependent side effects
+
+Canonical hashes must be reproducible.
+
+### 3. No Key Custody
+
+QWG must never:
+
+- hold private keys
+- derive private keys
+- access private keys
+- sign transactions
+- broadcast transactions
+- act as a wallet implementation
+
+QWG evaluates safety evidence only.
+
+### 4. Evidence-Only Authority
+
+QWG may:
+
+- evaluate wallet runtime context
+- evaluate transaction safety context
+- evaluate quantum/post-quantum risk context
+- produce deterministic wallet-safety evidence
+- provide evidence to the Shield Orchestrator path
+
+QWG must never:
+
+- execute cryptographic signing
+- modify consensus behavior
+- perform final approval
+- approve AdamantineOS execution directly
+- override the Shield Orchestrator
+- create hidden authority through fallback behavior
+
+### 5. No Silent Fallbacks
+
+All error paths must be explicit, deterministic, and test-covered.
+
+A fallback that changes authority, weakens validation, or allows execution is a security defect.
 
 ---
 
-## Testing & CI
+## v3.2.0 Security Boundary
 
-CI enforces:
+The v3.2.0 boundary locks QWG into the Shield manifest / verdict / receipt upgrade path.
 
-```
-pytest --cov=qwg --cov-report=term-missing --cov-fail-under=100 -q
-```
+QWG component verdicts are **evidence only**.
 
-Security-sensitive changes require tests.
+QWG must not be treated as final execution authority.
 
----
+AdamantineOS must consume Shield decisions only through the deterministic **Shield Orchestrator receipt**.
 
-## Vulnerability reporting
+Raw QWG outputs must not be consumed directly by AdamantineOS as final signing, execution, or approval authority.
 
-- Prefer GitHub Security Advisories
-- Or contact **@DarekDGB** on GitHub
+A Shield `ALLOW` result only permits AdamantineOS to continue its own checks.
 
-Please include reproduction steps and impact assessment.
+It is **not** final signing or execution approval.
 
 ---
 
-## Out of scope
+## Fail-Closed Requirements
+
+The following conditions must reject deterministically:
+
+- missing required verdict data
+- malformed verdict data
+- unknown fields in strict contract paths
+- duplicated authority claims
+- unknown reason IDs
+- unknown evidence families
+- mismatched component identity
+- mismatched contract version
+- mismatched context hash
+- unsafe or unserialisable input
+- non-canonical verdict data
+- ambiguity affecting authority, determinism, or auditability
+
+---
+
+## Security Testing
+
+Security guarantees are enforced through tests covering:
+
+- fail-closed behavior
+- deterministic wallet-safety behavior
+- unsupported contract versions
+- reason-code stability
+- evidence-family validation
+- manifest/verdict alignment
+- no-key-custody assumptions
+- Orchestrator-first boundary assumptions
+- regression protection against behavior drift
+
+Security-sensitive changes must include tests.
+
+Tests define truth.
+
+Documentation must never claim behavior that tests do not enforce.
+
+---
+
+## Release Requirements
+
+No QWG v3.2.0 release should be tagged unless all of the following are true:
+
+- roadmap checklist is complete
+- tests pass locally or in CI
+- coverage gate remains satisfied
+- manifest files are present and aligned
+- reason IDs are documented and tested
+- evidence families are documented and tested
+- verdict boundary tests pass
+- Orchestrator receipt boundary is respected
+- final fresh ZIP audit is complete
+- Red Team report is complete
+- no docs-vs-tests mismatch remains
+
+---
+
+## Reporting a Vulnerability
+
+If you believe you have found a security issue:
+
+1. Do **not** disclose it publicly first.
+2. Open a private security advisory through GitHub if available.
+3. Alternatively, contact the maintainer through the GitHub profile: **@DarekDGB**.
+
+Please include:
+
+- clear description of the issue
+- steps to reproduce, if applicable
+- expected behavior
+- actual behavior
+- affected commit hash or tag
+- potential security impact
+
+Coordinated disclosure is strongly encouraged.
+
+---
+
+## In Scope
+
+Security issues in scope include:
+
+- QWG wallet-safety contract behavior
+- determinism violations
+- fail-closed bypasses
+- reason ID ambiguity
+- evidence-family ambiguity
+- manifest/verdict mismatch
+- context hash mismatch
+- key-custody boundary violation
+- Orchestrator boundary bypass risk
+- AdamantineOS raw-output bypass risk
+- CI or test coverage gaps affecting security
+
+---
+
+## Out of Scope
+
+The following are out of scope unless they create a direct security defect:
 
 - DigiByte consensus vulnerabilities
-- mining or protocol attacks
-- unrelated UI issues
+- mining-layer issues
+- wallet UI preferences
+- performance tuning
+- cosmetic documentation changes
+- non-security refactors
+- unsupported archived behavior
+
+---
+
+## Security Updates
+
+Security fixes may:
+
+- tighten validation
+- improve fail-closed behavior
+- add negative tests
+- update documentation
+- clarify reason IDs or evidence families
+
+Breaking changes to security semantics require:
+
+- documentation updates
+- explicit version notes
+- regression tests
+- coverage proof
 
 ---
 
 ## Disclaimer
 
-Software is provided **as-is**, without warranty.
+This software is provided **as-is**, without warranty of any kind.
+
+Use at your own risk.
 
 ---
+
+## Final Security Rule
+
+Any change that weakens determinism, fail-closed behavior, explicit authority boundaries, no-key-custody behavior, evidence-only behavior, or the Orchestrator-first receipt model must be rejected.
+
 © 2025 DarekDGB
