@@ -47,7 +47,7 @@ def test_qwg_v4_canonicalization_rejects_ambiguous_payloads() -> None:
     with pytest.raises(ValueError, match="object keys"):
         to_canonical_json({1: "bad"})  # type: ignore[dict-item]
     with pytest.raises(ValueError, match="duplicate key"):
-        to_canonical_json({"Ã©": 1, "e\u0301": 2})
+        to_canonical_json({"\u00e9": 1, "e\u0301": 2})
     with pytest.raises(ValueError, match="unsupported type"):
         to_canonical_json({"bad": object()})
     with pytest.raises(ValueError, match="duplicate key"):
