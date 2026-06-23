@@ -4,18 +4,22 @@ Author attribution: DarekDGB
 
 ## Scope
 
-This matrix covers the V4.4 QWG pilot component-verdict contract.
+This matrix covers the QWG Shield v4 component-verdict contract and the V4.8E real ML-DSA pilot backend path.
 
-The goal is to prove one Shield component can produce a signed v4 verdict envelope before the pattern is ported to the other Shield layers.
+The goal is to prove QWG can produce and verify v4 component evidence while keeping TEST-ONLY deterministic signatures separate from real backend mode.
 
 ## Positive Tests
 
 | Test | Expected result |
 |---|---|
 | build unsigned QWG v4 payload | deterministic payload with `contract_version: 4` |
-| add required classical + ML-DSA test signatures | signed envelope validates |
+| add required classical + ML-DSA test signatures | signed envelope validates under TEST-ONLY verifier |
 | validate with matching context hash | verification summary returned |
 | verify required role | `shield_component_qwg` only |
+| build real crypto signature input | frozen QWG component domain bytes |
+| build real ML-DSA signature entry through backend adapter | `b64u:` signature entry produced |
+| verify real ML-DSA signature entry through backend adapter | verification returns true |
+| lazy OQS fake backend exposes version | backend metadata includes locked mechanism |
 
 ## Negative Tests
 
@@ -34,6 +38,20 @@ The goal is to prove one Shield component can produce a signed v4 verdict envelo
 | null in signed payload | fail closed |
 | float in signed payload | fail closed |
 | duplicate JSON key while parsing | fail closed |
+| real backend missing required algorithm support | fail closed |
+| real backend receives TEST-ONLY key id or public key | fail closed |
+| real backend receives TEST-ONLY private key reference | fail closed |
+| real backend emits malformed non-`b64u:` signature | fail closed |
+| malformed real `b64u:` public key | fail closed |
+| malformed real `b64u:` signature | fail closed |
+| OQS import missing when backend selected | fail closed |
+| OQS `ML-DSA-65` mechanism disabled | fail closed |
+| wrong OQS mechanism requested | fail closed |
+| OQS backend asked to sign or verify non-`ml-dsa` algorithm | fail closed |
+| native OQS version or mechanism discovery exception | fail closed through QWG backend error hierarchy |
+| native OQS sign exception on backend-invalid key material | fail closed through QWG backend error hierarchy |
+| native OQS verify exception on structurally valid but backend-invalid key/signature bytes | fail closed through QWG backend error hierarchy |
+| empty OQS message, secret key, or signature bytes | fail closed |
 
 ## Required CI Gate
 
@@ -43,6 +61,6 @@ pytest --cov=qwg --cov-report=term-missing --cov-fail-under=100 -q
 
 ## Authority Boundary
 
-Passing these tests proves only the QWG v4 component-verdict contract shape.
+Passing these tests proves only the QWG v4 component-verdict contract and QWG real ML-DSA adapter boundary.
 
-It does not grant transaction-signing authority, broadcast authority, DigiByte consensus authority, or AdamantineOS final authority.
+It does not grant transaction-signing authority, broadcast authority, DigiByte consensus authority, Shield Orchestrator final receipt authority, or AdamantineOS final authority.
