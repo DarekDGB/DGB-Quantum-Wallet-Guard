@@ -36,6 +36,8 @@ ml-dsa
 
 Both required paths must verify for policy.v1.
 
+V4.8E adds a real OQS-backed adapter for the `ml-dsa` path only. It does not weaken the requirement for `classical-ed25519`.
+
 ## Optional Signature Path
 
 ```text
@@ -54,7 +56,7 @@ FN-DSA and ML-DSA are separate signature directions.
 
 ## Trust Profile
 
-The QWG v4 pilot trust profile requires:
+The QWG v4 trust profile requires:
 
 ```text
 role
@@ -73,17 +75,42 @@ The only valid QWG role in this component package is:
 shield_component_qwg
 ```
 
-A revoked key, unknown key, wrong role, wrong algorithm, or invalid validity window fails closed.
+A revoked key, unknown key, wrong role, wrong algorithm, invalid validity window, malformed real binary key, or deterministic TEST-ONLY key in real backend mode fails closed.
+
+## Real Backend Files
+
+V4.8E adds:
+
+```text
+src/qwg/v4/real_crypto_backend.py
+src/qwg/v4/oqs_mldsa_backend.py
+docs/qwg/v4/REAL_CRYPTO_BACKEND.md
+THIRD_PARTY_NOTICES.md
+```
+
+The OQS adapter maps:
+
+```text
+Shield algorithm: ml-dsa
+OQS mechanism:    ML-DSA-65
+```
+
+It lazily imports `oqs` only when used and does not add a hard dependency to `pyproject.toml`.
 
 ## Current Implementation Status
 
-V4.4 provides:
+V4.4 provided:
 
-- a parallel `qwg.v4` package
-- canonical component-verdict signed payload construction
-- deterministic TEST-ONLY signature entries
-- strict signature-bundle validation
-- QWG role-bound trust profile validation
-- negative tests for tampering, context mismatch, and missing signatures
+- a parallel `qwg.v4` package;
+- canonical component-verdict signed payload construction;
+- deterministic TEST-ONLY signature entries;
+- strict signature-bundle validation;
+- QWG role-bound trust profile validation;
+- negative tests for tampering, context mismatch, and missing signatures.
 
-This is a component pilot before porting the same shape to the other Shield component repositories.
+V4.8E adds:
+
+- a backend-neutral real crypto adapter for QWG component verdict evidence;
+- strict `b64u:<unpadded-base64url-bytes>` real binary material encoding;
+- a lazy OQS/liboqs ML-DSA backend mapped to `ML-DSA-65`;
+- tests proving OQS missing, disabled, wrong mechanism, malformed binary material, native OQS/liboqs exceptions, and TEST-ONLY material all fail closed.
