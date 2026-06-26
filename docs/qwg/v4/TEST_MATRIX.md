@@ -20,6 +20,7 @@ The goal is to prove QWG can produce and verify v4 component evidence while keep
 | build real ML-DSA signature entry through backend adapter | `b64u:` signature entry produced |
 | verify real ML-DSA signature entry through backend adapter | verification returns true |
 | lazy OQS fake backend exposes version | backend metadata includes locked mechanism |
+| gated live liboqs ML-DSA proof | skipped by default; passes only in a dedicated `SHIELD_V4_REAL_OQS=1` job with `skipped == 0` |
 
 ## Negative Tests
 
@@ -52,11 +53,27 @@ The goal is to prove QWG can produce and verify v4 component evidence while keep
 | native OQS sign exception on backend-invalid key material | fail closed through QWG backend error hierarchy |
 | native OQS verify exception on structurally valid but backend-invalid key/signature bytes | fail closed through QWG backend error hierarchy |
 | empty OQS message, secret key, or signature bytes | fail closed |
+| live liboqs wrong-length public key | fail closed through QWG backend error hierarchy in the gated real-OQS job |
+| live liboqs tampered signature | verify returns false in the gated real-OQS job |
+| real-OQS job import-skips or collects no tests | guard fails the dedicated job |
 
 ## Required CI Gate
 
 ```text
 pytest --cov=qwg --cov-report=term-missing --cov-fail-under=100 -q
+```
+
+## Optional Real-OQS CI Gate
+
+This gate is not part of default CI and must not create a hard OQS/liboqs dependency. It is
+required before any public claim that live liboqs ML-DSA verified through QWG:
+
+```text
+SHIELD_V4_REAL_OQS=1 python -m pytest \
+  tests/test_v48g_real_oqs_mldsa_backend.py \
+  --override-ini addopts='' \
+  --junitxml=.artifacts/v48g-real-oqs.xml
+python scripts/assert_real_oqs_junit_not_skipped.py .artifacts/v48g-real-oqs.xml
 ```
 
 ## Authority Boundary
