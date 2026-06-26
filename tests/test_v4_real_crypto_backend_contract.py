@@ -51,6 +51,50 @@ class FakeRealBackend:
         return signature == expected
 
 
+class NativeBackendError(RuntimeError):
+    pass
+
+
+class AlgorithmDiscoveryFailureBackend:
+    backend_name = "fake-qwg-algorithm-discovery-failure"
+    backend_version = "test-vector-only"
+
+    @property
+    def supported_algorithms(self) -> tuple[str, ...]:
+        raise NativeBackendError("native algorithm discovery failure")
+
+    def sign_message(self, *, algorithm: str, private_key_reference: str, message: bytes) -> str:
+        raise AssertionError("algorithm discovery should happen before sign")
+
+    def verify_signature(self, *, algorithm: str, public_key: str, message: bytes, signature: str) -> bool:
+        raise AssertionError("algorithm discovery should happen before verify")
+
+
+class SignFailureBackend(FakeRealBackend):
+    def sign_message(self, *, algorithm: str, private_key_reference: str, message: bytes) -> str:
+        raise NativeBackendError("native sign failure")
+
+
+class VerifyFailureBackend(FakeRealBackend):
+    def verify_signature(self, *, algorithm: str, public_key: str, message: bytes, signature: str) -> bool:
+        raise NativeBackendError("native verify failure")
+
+
+class NonBoolVerifyBackend(FakeRealBackend):
+    def verify_signature(self, *, algorithm: str, public_key: str, message: bytes, signature: str) -> bool:  # type: ignore[override]
+        return 1  # type: ignore[return-value]
+
+
+class BackendOwnedSignFailure(FakeRealBackend):
+    def sign_message(self, *, algorithm: str, private_key_reference: str, message: bytes) -> str:
+        raise QwgV4RealCryptoBackendError("backend-owned sign failure")
+
+
+class BackendOwnedVerifyFailure(FakeRealBackend):
+    def verify_signature(self, *, algorithm: str, public_key: str, message: bytes, signature: str) -> bool:
+        raise QwgV4RealCryptoBackendError("backend-owned verify failure")
+
+
 def real_key(*, algorithm: str = "ml-dsa", public_key: str | None = None) -> dict[str, Any]:
     return {
         "role": COMPONENT_ROLE,
@@ -298,3 +342,50 @@ def test_v48e_real_binary_encoding_helpers_are_strict() -> None:
         decode_binary_signature_material("b64u:****", field="signature")
     with pytest.raises(QwgV4RealCryptoBackendError, match="invalid"):
         decode_binary_signature_material("b64u:A", field="signature")
+
+
+def test_v48g_qwg_real_crypto_backend_wraps_native_exceptions_and_rejects_non_bool_verify() -> None:
+    key = real_key()
+    entry = signature_for_key(key)
+
+    with pytest.raises(QwgV4RealCryptoBackendError, match="algorithm discovery failed closed") as algorithm_error:
+        verify_signature_entry_with_real_backend(entry, key, backend=AlgorithmDiscoveryFailureBackend())  # type: ignore[arg-type]
+    assert isinstance(algorithm_error.value.__cause__, NativeBackendError)
+
+    with pytest.raises(QwgV4RealCryptoBackendError, match="sign failed closed") as sign_error:
+        build_signature_entry_with_real_backend(
+            algorithm="ml-dsa",
+            domain_tag=COMPONENT_VERDICT_DOMAIN,
+            signed_payload_hash=PAYLOAD_HASH,
+            key_id="shield_component_qwg-ml-dsa-v1",
+            key_version=1,
+            private_key_reference="hsm://qwg/ml-dsa/v1",
+            backend=SignFailureBackend(),
+        )
+    assert isinstance(sign_error.value.__cause__, NativeBackendError)
+
+    with pytest.raises(QwgV4RealCryptoBackendError, match="verify failed closed") as verify_error:
+        verify_signature_entry_with_real_backend(entry, key, backend=VerifyFailureBackend())
+    assert isinstance(verify_error.value.__cause__, NativeBackendError)
+
+    with pytest.raises(QwgV4RealCryptoBackendError, match="verify must return bool"):
+        verify_signature_entry_with_real_backend(entry, key, backend=NonBoolVerifyBackend())
+
+
+def test_v48g_qwg_real_crypto_backend_preserves_backend_owned_fail_closed_errors() -> None:
+    key = real_key()
+    entry = signature_for_key(key)
+
+    with pytest.raises(QwgV4RealCryptoBackendError, match="backend-owned sign failure"):
+        build_signature_entry_with_real_backend(
+            algorithm="ml-dsa",
+            domain_tag=COMPONENT_VERDICT_DOMAIN,
+            signed_payload_hash=PAYLOAD_HASH,
+            key_id="shield_component_qwg-ml-dsa-v1",
+            key_version=1,
+            private_key_reference="hsm://qwg/ml-dsa/v1",
+            backend=BackendOwnedSignFailure(),
+        )
+
+    with pytest.raises(QwgV4RealCryptoBackendError, match="backend-owned verify failure"):
+        verify_signature_entry_with_real_backend(entry, key, backend=BackendOwnedVerifyFailure())
