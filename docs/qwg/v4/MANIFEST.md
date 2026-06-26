@@ -114,3 +114,10 @@ V4.8E adds:
 - strict `b64u:<unpadded-base64url-bytes>` real binary material encoding;
 - a lazy OQS/liboqs ML-DSA backend mapped to `ML-DSA-65`;
 - tests proving OQS missing, disabled, wrong mechanism, malformed binary material, native OQS/liboqs exceptions, and TEST-ONLY material all fail closed.
+
+V4.8G adds:
+
+- strict `isinstance(verified, bool)` enforcement for generic and OQS verifier returns;
+- a gated live liboqs ML-DSA proof test in `tests/test_v48g_real_oqs_mldsa_backend.py`;
+- a not-skipped JUnit guard in `scripts/assert_real_oqs_junit_not_skipped.py`;
+- documentation that default CI proves the interface contract and fail-closed behavior, while live liboqs proof requires `SHIELD_V4_REAL_OQS=1` plus installed `oqs`/liboqs.
