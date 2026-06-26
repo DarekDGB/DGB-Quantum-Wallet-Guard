@@ -62,6 +62,29 @@ OQS mechanism:    ML-DSA-65
 
 The mechanism is deliberately locked for this backend. A caller cannot silently swap `ML-DSA-44`, `ML-DSA-87`, Falcon/FN-DSA, or another mechanism behind the Shield policy name.
 
+## CI proof levels and gated real-liboqs job
+
+Default package CI proves the QWG real-backend adapter interface, binary-material parsing,
+fail-closed exception hierarchy, and component evidence wiring with deterministic backends.
+That default CI does not claim to execute live liboqs ML-DSA.
+
+Live liboqs ML-DSA proof is optional and gated so QWG does not gain a hard OQS/liboqs
+dependency. The dedicated job must set `SHIELD_V4_REAL_OQS=1`, install `oqs`/liboqs,
+write a JUnit report, disable default coverage addopts for the focused gated job, and run the not-skipped guard:
+
+```text
+SHIELD_V4_REAL_OQS=1 python -m pytest \
+  tests/test_v48g_real_oqs_mldsa_backend.py \
+  --override-ini addopts='' \
+  --junitxml=.artifacts/v48g-real-oqs.xml
+python scripts/assert_real_oqs_junit_not_skipped.py .artifacts/v48g-real-oqs.xml
+```
+
+The guard fails if the real-OQS job collects zero tests, skips any testcase, or records any
+failure/error. A public claim that live liboqs ML-DSA verified through QWG requires that
+gated job to pass with `skipped == 0`; release-grade real-backend proof remains a V4.10
+release gate.
+
 ## Frozen real-signature input
 
 Every real QWG component-verdict signature signs the exact byte string:
