@@ -10,6 +10,7 @@ from qwg.v4.real_crypto_backend import (
     QwgV4RealCryptoBackendUnavailable,
     decode_binary_signature_material,
     encode_binary_signature_material,
+    reject_test_only_private_key_reference,
 )
 
 OQS_ML_DSA_ALGORITHM = "ml-dsa"
@@ -63,6 +64,8 @@ class OqsMlDsaBackend:
             return importlib.import_module("oqs")
         except ImportError as exc:
             raise QwgV4RealCryptoBackendUnavailable("liboqs-python import oqs is required for ML-DSA") from exc
+        except Exception as exc:
+            self._raise_oqs_error("import", exc)
 
     def _raise_oqs_error(self, operation: str, exc: Exception) -> NoReturn:
         raise QwgV4RealCryptoBackendError(f"OQS ML-DSA {operation} failed closed") from exc
@@ -82,13 +85,41 @@ class OqsMlDsaBackend:
             raise QwgV4RealCryptoBackendError(f"{field} must be non-empty bytes")
         return value
 
+    def _require_expected_binary_length(
+        self,
+        value: bytes,
+        *,
+        details: Any,
+        detail_key: str,
+        field: str,
+    ) -> None:
+        if details is None:
+            return
+        if not isinstance(details, dict):
+            raise QwgV4RealCryptoBackendError("OQS ML-DSA details must be a mapping")
+        expected = details.get(detail_key)
+        if expected is None:
+            return
+        if isinstance(expected, bool) or not isinstance(expected, int) or expected <= 0:
+            raise QwgV4RealCryptoBackendError(f"OQS ML-DSA {detail_key} must be a positive integer")
+        if len(value) != expected:
+            raise QwgV4RealCryptoBackendError(f"{field} byte length must be {expected} for OQS ML-DSA-65")
+
+    def _resolve_private_key(self, private_key_reference: str) -> bytes:
+        clean_reference = reject_test_only_private_key_reference(private_key_reference)
+        try:
+            secret_key = self._private_key_resolver(clean_reference)
+        except Exception as exc:
+            self._raise_oqs_error("private key resolution", exc)
+        return self._require_bytes(secret_key, field="secret_key")
+
     def sign_message(self, *, algorithm: str, private_key_reference: str, message: bytes) -> str:
         """Sign QWG Shield v4 evidence bytes using OQS ML-DSA-65."""
 
         if algorithm != OQS_ML_DSA_ALGORITHM:
             raise QwgV4RealCryptoBackendUnavailable("OQS backend only supports Shield v4 ml-dsa")
         message_bytes = self._require_bytes(message, field="message")
-        secret_key = self._require_bytes(self._private_key_resolver(private_key_reference), field="secret_key")
+        secret_key = self._resolve_private_key(private_key_reference)
         oqs = self._require_mechanism_enabled()
         try:
             with oqs.Signature(self.mechanism, secret_key) as signer:
@@ -109,8 +140,25 @@ class OqsMlDsaBackend:
         oqs = self._require_mechanism_enabled()
         try:
             with oqs.Signature(self.mechanism) as verifier:
+                details = getattr(verifier, "details", None)
+                self._require_expected_binary_length(
+                    public_key_bytes,
+                    details=details,
+                    detail_key="length_public_key",
+                    field="public_key",
+                )
+                self._require_expected_binary_length(
+                    signature_bytes,
+                    details=details,
+                    detail_key="length_signature",
+                    field="signature",
+                )
                 verified = verifier.verify(message_bytes, signature_bytes, public_key_bytes)
+        except QwgV4RealCryptoBackendError:
+            raise
         except Exception as exc:
             self._raise_oqs_error("verify", exc)
         else:
-            return bool(verified)
+            if not isinstance(verified, bool):
+                raise QwgV4RealCryptoBackendError("OQS ML-DSA verify must return bool")
+            return verified
