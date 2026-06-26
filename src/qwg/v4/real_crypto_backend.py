@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 import base64
 import binascii
-from collections.abc import Callable
 from typing import Any, Protocol
 
 from qwg.v4 import COMPONENT_ROLE
@@ -49,6 +49,8 @@ class QwgV4RealCryptoBackend(Protocol):
 
 
 RealCryptoSignatureVerifier = Callable[[dict[str, Any], dict[str, Any]], bool]
+
+
 
 
 def _require_hash(value: Any, *, field: str) -> str:
@@ -148,9 +150,51 @@ def build_real_crypto_signature_input(
 
 
 def _require_backend_supports_algorithm(backend: QwgV4RealCryptoBackend, algorithm: str) -> None:
-    supported = tuple(getattr(backend, "supported_algorithms", ()))
+    try:
+        supported = tuple(getattr(backend, "supported_algorithms", ()))
+    except Exception as exc:
+        raise QwgV4RealCryptoBackendError("real crypto backend algorithm discovery failed closed") from exc
     if algorithm not in supported:
         raise QwgV4RealCryptoBackendUnavailable("real crypto backend does not support required algorithm")
+
+
+def _call_backend_sign(
+    backend: QwgV4RealCryptoBackend,
+    *,
+    algorithm: str,
+    private_key_reference: str,
+    message: bytes,
+) -> str:
+    try:
+        return backend.sign_message(algorithm=algorithm, private_key_reference=private_key_reference, message=message)
+    except QwgV4RealCryptoBackendError:
+        raise
+    except Exception as exc:
+        raise QwgV4RealCryptoBackendError("real crypto backend sign failed closed") from exc
+
+
+def _call_backend_verify(
+    backend: QwgV4RealCryptoBackend,
+    *,
+    algorithm: str,
+    public_key: str,
+    message: bytes,
+    signature: str,
+) -> bool:
+    try:
+        verified = backend.verify_signature(
+            algorithm=algorithm,
+            public_key=public_key,
+            message=message,
+            signature=signature,
+        )
+    except QwgV4RealCryptoBackendError:
+        raise
+    except Exception as exc:
+        raise QwgV4RealCryptoBackendError("real crypto backend verify failed closed") from exc
+    if not isinstance(verified, bool):
+        raise QwgV4RealCryptoBackendError("real crypto backend verify must return bool")
+    return verified
 
 
 def build_signature_entry_with_real_backend(
@@ -174,7 +218,12 @@ def build_signature_entry_with_real_backend(
     )
     clean_private_ref = reject_test_only_private_key_reference(private_key_reference)
     _require_backend_supports_algorithm(backend, algorithm)
-    signature = backend.sign_message(algorithm=algorithm, private_key_reference=clean_private_ref, message=message)
+    signature = _call_backend_sign(
+        backend,
+        algorithm=algorithm,
+        private_key_reference=clean_private_ref,
+        message=message,
+    )
     clean_signature = require_non_empty_str(signature, field="signature")
     decode_binary_signature_material(clean_signature, field="signature")
     return {
@@ -228,13 +277,12 @@ def verify_signature_entry_with_real_backend(
     )
     signature = require_non_empty_str(entry.get("signature"), field="signature")
     decode_binary_signature_material(signature, field="signature")
-    return bool(
-        backend.verify_signature(
-            algorithm=algorithm,
-            public_key=checked_key["public_key"],
-            message=message,
-            signature=signature,
-        )
+    return _call_backend_verify(
+        backend,
+        algorithm=algorithm,
+        public_key=checked_key["public_key"],
+        message=message,
+        signature=signature,
     )
 
 
