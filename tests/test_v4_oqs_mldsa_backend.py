@@ -64,6 +64,11 @@ class NativeVerifyFailure(FakeOqsSignature):
         raise NativeOqsError("native verify rejected material")
 
 
+class NonBoolVerify(FakeOqsSignature):
+    def verify(self, message: bytes, signature: bytes, public_key: bytes) -> bool:  # type: ignore[override]
+        return 1  # type: ignore[return-value]
+
+
 @dataclass(frozen=True)
 class FakeOqsModule:
     enabled: tuple[str, ...] = (OQS_ML_DSA_MECHANISM,)
@@ -91,6 +96,16 @@ class VersionDiscoveryFailureModule(FakeOqsModule):
 class MechanismDiscoveryFailureModule(FakeOqsModule):
     def get_enabled_sig_mechanisms(self) -> tuple[str, ...]:
         raise NativeOqsError("native mechanism discovery failure")
+
+
+class SignatureConstructorFailureModule(FakeOqsModule):
+    @property
+    def Signature(self) -> type[FakeOqsSignature]:
+        raise NativeOqsError("native signature constructor failure")
+
+
+def failing_resolver(reference: str) -> bytes:
+    raise NativeOqsError("native resolver failure")
 
 
 def resolver(reference: str) -> bytes:
@@ -244,3 +259,130 @@ def test_v48e_oqs_binary_encoding_helpers_match_real_backend_contract() -> None:
     encoded = encode_binary_signature_material(b"abc", field="signature")
     assert encoded == "b64u:YWJj"
     assert decode_binary_signature_material(encoded, field="signature") == b"abc"
+
+
+def test_v48g_qwg_oqs_mldsa_backend_wraps_import_resolver_constructor_and_rejects_non_bool_verify(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = OqsMlDsaBackend(private_key_resolver=resolver)
+    monkeypatch.setattr(
+        oqs_backend_module.importlib,
+        "import_module",
+        lambda name: (_ for _ in ()).throw(NativeOqsError("native import failure")),
+    )
+    with pytest.raises(QwgV4RealCryptoBackendError, match="import failed closed") as import_error:
+        _ = backend.backend_version
+    assert isinstance(import_error.value.__cause__, NativeOqsError)
+
+    backend = OqsMlDsaBackend(private_key_resolver=failing_resolver, oqs_module=FakeOqsModule())
+    with pytest.raises(QwgV4RealCryptoBackendError, match="private key resolution failed closed") as resolver_error:
+        backend.sign_message(algorithm="ml-dsa", private_key_reference="hsm://qwg/ml-dsa/v1", message=b"message")
+    assert isinstance(resolver_error.value.__cause__, NativeOqsError)
+
+    backend = OqsMlDsaBackend(private_key_resolver=resolver, oqs_module=SignatureConstructorFailureModule())
+    with pytest.raises(QwgV4RealCryptoBackendError, match="sign failed closed") as constructor_error:
+        backend.sign_message(algorithm="ml-dsa", private_key_reference="hsm://qwg/ml-dsa/v1", message=b"message")
+    assert isinstance(constructor_error.value.__cause__, NativeOqsError)
+
+    backend = OqsMlDsaBackend(private_key_resolver=resolver, oqs_module=FakeOqsModule(signature_cls=NonBoolVerify))
+    with pytest.raises(QwgV4RealCryptoBackendError, match="verify must return bool"):
+        backend.verify_signature(
+            algorithm="ml-dsa",
+            public_key=real_key()["public_key"],  # type: ignore[arg-type]
+            message=b"message",
+            signature=encode_binary_signature_material(b"short-signature", field="signature"),
+        )
+
+class LengthCheckedOqsSignature(FakeOqsSignature):
+    details = {
+        "length_public_key": len(PUBLIC_KEY_BYTES),
+        "length_signature": hashlib.sha256(b"").digest_size,
+    }
+
+
+def test_v48g_qwg_oqs_mldsa_backend_rejects_wrong_binary_lengths_before_native_verify() -> None:
+    backend = OqsMlDsaBackend(
+        private_key_resolver=resolver,
+        oqs_module=FakeOqsModule(signature_cls=LengthCheckedOqsSignature),
+    )
+
+    with pytest.raises(QwgV4RealCryptoBackendError, match="public_key byte length"):
+        backend.verify_signature(
+            algorithm="ml-dsa",
+            public_key=encode_binary_signature_material(PUBLIC_KEY_BYTES[:-1], field="public_key"),
+            message=b"message",
+            signature=encode_binary_signature_material(b"0" * hashlib.sha256(b"").digest_size, field="signature"),
+        )
+
+    with pytest.raises(QwgV4RealCryptoBackendError, match="signature byte length"):
+        backend.verify_signature(
+            algorithm="ml-dsa",
+            public_key=real_key()["public_key"],  # type: ignore[arg-type]
+            message=b"message",
+            signature=encode_binary_signature_material(b"short-signature", field="signature"),
+        )
+
+
+def test_v48g_qwg_oqs_mldsa_backend_rejects_direct_test_only_private_reference() -> None:
+    backend = OqsMlDsaBackend(private_key_resolver=resolver, oqs_module=FakeOqsModule())
+    with pytest.raises(QwgV4RealCryptoBackendError, match="private_key_reference"):
+        backend.sign_message(algorithm="ml-dsa", private_key_reference="test-only-private", message=b"message")
+
+class NonMappingDetailsOqsSignature(FakeOqsSignature):
+    details = "bad-details"
+
+
+class MissingLengthDetailsOqsSignature(FakeOqsSignature):
+    details: dict[str, int] = {}
+
+
+class InvalidLengthDetailsOqsSignature(FakeOqsSignature):
+    details = {"length_public_key": True, "length_signature": hashlib.sha256(b"").digest_size}
+
+
+def test_v48g_qwg_oqs_mldsa_backend_validates_optional_backend_length_metadata() -> None:
+    backend = OqsMlDsaBackend(
+        private_key_resolver=resolver,
+        oqs_module=FakeOqsModule(signature_cls=NonMappingDetailsOqsSignature),
+    )
+    with pytest.raises(QwgV4RealCryptoBackendError, match="details must be a mapping"):
+        backend.verify_signature(
+            algorithm="ml-dsa",
+            public_key=real_key()["public_key"],  # type: ignore[arg-type]
+            message=b"message",
+            signature=encode_binary_signature_material(b"0" * hashlib.sha256(b"").digest_size, field="signature"),
+        )
+
+    backend = OqsMlDsaBackend(
+        private_key_resolver=resolver,
+        oqs_module=FakeOqsModule(signature_cls=InvalidLengthDetailsOqsSignature),
+    )
+    with pytest.raises(QwgV4RealCryptoBackendError, match="length_public_key"):
+        backend.verify_signature(
+            algorithm="ml-dsa",
+            public_key=real_key()["public_key"],  # type: ignore[arg-type]
+            message=b"message",
+            signature=encode_binary_signature_material(b"0" * hashlib.sha256(b"").digest_size, field="signature"),
+        )
+
+    backend = OqsMlDsaBackend(
+        private_key_resolver=resolver,
+        oqs_module=FakeOqsModule(signature_cls=MissingLengthDetailsOqsSignature),
+    )
+    message = build_real_crypto_signature_input(
+        algorithm="ml-dsa",
+        domain_tag=COMPONENT_VERDICT_DOMAIN,
+        signed_payload_hash=PAYLOAD_HASH,
+        key_id="shield_component_qwg-ml-dsa-v1",
+        key_version=1,
+    )
+    signature = encode_binary_signature_material(
+        hashlib.sha256(b"oqs-sign|" + PUBLIC_KEY_BYTES + message).digest(),
+        field="signature",
+    )
+    assert backend.verify_signature(
+        algorithm="ml-dsa",
+        public_key=real_key()["public_key"],  # type: ignore[arg-type]
+        message=message,
+        signature=signature,
+    ) is True
