@@ -21,6 +21,7 @@ The goal is to prove QWG can produce and verify v4 component evidence while keep
 | verify real ML-DSA signature entry through backend adapter | verification returns true |
 | lazy OQS fake backend exposes version | backend metadata includes locked mechanism |
 | gated live liboqs ML-DSA proof | skipped by default; passes only in a dedicated `SHIELD_V4_REAL_OQS=1` job with `skipped == 0` |
+| shared frozen component-verdict KAT vector | canonical JSON, domain-separated bytes, and signed payload hash match the shared V4.8G-R4 fixture |
 
 ## Negative Tests
 
@@ -38,6 +39,7 @@ The goal is to prove QWG can produce and verify v4 component evidence while keep
 | forbidden authority metadata | fail closed |
 | null in signed payload | fail closed |
 | float in signed payload | fail closed |
+| KAT payload mutated with null or float | fail closed before signing |
 | duplicate JSON key while parsing | fail closed |
 | real backend missing required algorithm support | fail closed |
 | real backend receives TEST-ONLY key id or public key | fail closed |
@@ -75,6 +77,22 @@ SHIELD_V4_REAL_OQS=1 python -m pytest \
   --junitxml=.artifacts/v48g-real-oqs.xml
 python scripts/assert_real_oqs_junit_not_skipped.py .artifacts/v48g-real-oqs.xml
 ```
+
+## V4.8G-R4 Audit Cleanup Checks
+
+The component test suite now includes a shared frozen component-verdict KAT fixture:
+
+```text
+tests/fixtures/v4/component_verdict_policy_v1_kat.json
+```
+
+Every component repo must reproduce this signed payload hash exactly:
+
+```text
+a3881f27444ce73de875a15c8b413785a4fec4f4c03baaa6f8ee2fbf839736ae
+```
+
+The KAT is TEST-ONLY deterministic canonicalization evidence only. It does not sign transactions, broadcast, change DigiByte consensus, or claim live liboqs execution.
 
 ## Authority Boundary
 
