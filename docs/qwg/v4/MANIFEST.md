@@ -121,3 +121,15 @@ V4.8G adds:
 - a gated live liboqs ML-DSA proof test in `tests/test_v48g_real_oqs_mldsa_backend.py`;
 - a not-skipped JUnit guard in `scripts/assert_real_oqs_junit_not_skipped.py`;
 - documentation that default CI proves the interface contract and fail-closed behavior, while live liboqs proof requires `SHIELD_V4_REAL_OQS=1` plus installed `oqs`/liboqs.
+
+
+## V4.8G-R4 Audit Cleanup
+
+V4.8G-R4 closes the audit cleanup items for component canonicalization drift by adding:
+
+- QWG real-crypto adapter parity now matches the later component ports;
+- the shared frozen component-verdict KAT fixture in `tests/fixtures/v4/component_verdict_policy_v1_kat.json`;
+- a KAT lock test that must reproduce signed payload hash `a3881f27444ce73de875a15c8b413785a4fec4f4c03baaa6f8ee2fbf839736ae`;
+- explicit proof that null and float mutations of the KAT payload fail before signing.
+
+The KAT is TEST-ONLY deterministic evidence. It is not production key material and does not claim live liboqs execution.
