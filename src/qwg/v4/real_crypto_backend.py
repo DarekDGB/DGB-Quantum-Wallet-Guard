@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 import base64
 import binascii
-from typing import Any, Protocol
+from collections.abc import Callable
+from typing import Any, Protocol, TypeVar
 
 from qwg.v4 import COMPONENT_ROLE
 from qwg.v4.signing import COMPONENT_VERDICT_DOMAIN
@@ -15,6 +15,7 @@ _BASE64URL_ALPHABET = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstu
 _TEST_ONLY_MARKERS = ("test-only",)
 _TEST_ONLY_PREFIXES = ("test-",)
 _ALLOWED_DOMAIN_TAGS = frozenset({COMPONENT_VERDICT_DOMAIN})
+_T = TypeVar("_T")
 
 
 class QwgV4RealCryptoBackendError(ValueError):
@@ -49,12 +50,36 @@ class QwgV4RealCryptoBackend(Protocol):
 
 
 RealCryptoSignatureVerifier = Callable[[dict[str, Any], dict[str, Any]], bool]
+_SIGNATURE_ENTRY_FIELDS = frozenset({"algorithm", "key_id", "key_version", "signed_payload_hash", "domain_tag", "signature"})
+_REGISTRY_KEY_FIELDS = frozenset({"role", "key_id", "key_version", "algorithm", "not_before", "not_after", "status", "public_key"})
 
 
+def _wrap_value_error(operation: str, callback: Callable[[], _T]) -> _T:
+    try:
+        return callback()
+    except ValueError as exc:
+        raise QwgV4RealCryptoBackendError(f"{operation} failed closed: {exc}") from exc
+
+
+def _require_real_non_empty_str(value: Any, *, field: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise QwgV4RealCryptoBackendError(f"{field} must be non-empty string")
+    if value != value.strip():
+        raise QwgV4RealCryptoBackendError(f"{field} must not contain surrounding whitespace")
+    return value
+
+
+def _require_real_positive_int(value: Any, *, field: str) -> int:
+    return _wrap_value_error(field, lambda: require_positive_int(value, field=field))
+
+
+def _require_real_supported_algorithm(algorithm: Any) -> str:
+    clean = _require_real_non_empty_str(algorithm, field="algorithm")
+    return _wrap_value_error("algorithm", lambda: require_supported_algorithm(clean))
 
 
 def _require_hash(value: Any, *, field: str) -> str:
-    clean = require_non_empty_str(value, field=field)
+    clean = _require_real_non_empty_str(value, field=field)
     if len(clean) != 64:
         raise QwgV4RealCryptoBackendError(f"{field} must be 64-character sha256 hex")
     try:
@@ -84,7 +109,7 @@ def encode_binary_signature_material(raw: bytes, *, field: str = "signature") ->
 def decode_binary_signature_material(encoded: Any, *, field: str = "signature") -> bytes:
     """Decode an explicit ``b64u:`` signature/key encoding into bytes."""
 
-    clean = require_non_empty_str(encoded, field=field)
+    clean = _require_real_non_empty_str(encoded, field=field)
     if not clean.startswith(REAL_SIGNATURE_ENCODING_PREFIX):
         raise QwgV4RealCryptoBackendError(f"{field} must use b64u encoding")
     body = clean[len(REAL_SIGNATURE_ENCODING_PREFIX) :]
@@ -98,11 +123,13 @@ def decode_binary_signature_material(encoded: Any, *, field: str = "signature") 
         decoded = base64.urlsafe_b64decode(body + "=" * (-len(body) % 4))
     except (binascii.Error, ValueError) as exc:
         raise QwgV4RealCryptoBackendError(f"{field} b64u payload is invalid") from exc
+    if not decoded:  # pragma: no cover - base64url cannot reach this after the body check.
+        raise QwgV4RealCryptoBackendError(f"{field} b64u payload must decode to non-empty bytes")
     return decoded
 
 
 def reject_test_only_private_key_reference(private_key_reference: str) -> str:
-    clean = require_non_empty_str(private_key_reference, field="private_key_reference")
+    clean = _require_real_non_empty_str(private_key_reference, field="private_key_reference")
     _reject_test_only_text(clean, field="private_key_reference")
     return clean
 
@@ -110,8 +137,11 @@ def reject_test_only_private_key_reference(private_key_reference: str) -> str:
 def reject_test_only_key_material(key: dict[str, Any]) -> None:
     """Fail closed if deterministic-test keys reach the real backend boundary."""
 
-    _reject_test_only_text(require_non_empty_str(key.get("key_id"), field="key_id"), field="key_id")
-    _reject_test_only_text(require_non_empty_str(key.get("public_key"), field="public_key"), field="public_key")
+    _reject_test_only_text(_require_real_non_empty_str(key.get("key_id"), field="key_id"), field="key_id")
+    _reject_test_only_text(
+        _require_real_non_empty_str(key.get("public_key"), field="public_key"),
+        field="public_key",
+    )
 
 
 def build_real_crypto_signature_input(
@@ -122,21 +152,23 @@ def build_real_crypto_signature_input(
     key_id: str,
     key_version: int,
 ) -> bytes:
-    """Build the exact production-signature message bytes for QWG Shield v4.
+    """Build the exact production-signature message bytes for QWG evidence.
 
     The signed payload hash is already domain-separated over the canonical QWG
-    verdict payload. The real-signature input binds that hash to the concrete
-    signature entry, algorithm, key id, and key version so entries cannot be
-    spliced across bundles.
+    Wallet verdict payload. The real-signature input binds that hash to the
+    concrete signature entry, algorithm, key id, and key version so entries cannot
+    be spliced across bundles.
     """
 
-    clean_algorithm = require_supported_algorithm(algorithm)
-    clean_domain = require_non_empty_str(domain_tag, field="domain_tag")
+    clean_algorithm = _require_real_supported_algorithm(algorithm)
+    clean_domain = _require_real_non_empty_str(domain_tag, field="domain_tag")
     if clean_domain not in _ALLOWED_DOMAIN_TAGS:
-        raise QwgV4RealCryptoBackendError("domain_tag must be the QWG Shield v4 component signing domain")
+        raise QwgV4RealCryptoBackendError(
+            "domain_tag must be the QWG Shield v4 component signing domain"
+        )
     clean_hash = _require_hash(signed_payload_hash, field="signed_payload_hash")
-    clean_key_id = require_non_empty_str(key_id, field="key_id")
-    clean_key_version = require_positive_int(key_version, field="key_version")
+    clean_key_id = _require_real_non_empty_str(key_id, field="key_id")
+    clean_key_version = _require_real_positive_int(key_version, field="key_version")
     return "\n".join(
         (
             REAL_CRYPTO_SIGNATURE_INPUT_PREFIX,
@@ -166,7 +198,11 @@ def _call_backend_sign(
     message: bytes,
 ) -> str:
     try:
-        return backend.sign_message(algorithm=algorithm, private_key_reference=private_key_reference, message=message)
+        return backend.sign_message(
+            algorithm=algorithm,
+            private_key_reference=private_key_reference,
+            message=message,
+        )
     except QwgV4RealCryptoBackendError:
         raise
     except Exception as exc:
@@ -207,31 +243,36 @@ def build_signature_entry_with_real_backend(
     private_key_reference: str,
     backend: QwgV4RealCryptoBackend,
 ) -> dict[str, Any]:
-    """Build a QWG Shield v4 signature entry using a real backend implementation."""
+    """Build a QWG Shield v4 signature entry using a real backend."""
 
+    clean_algorithm = _require_real_supported_algorithm(algorithm)
+    clean_domain = _require_real_non_empty_str(domain_tag, field="domain_tag")
+    clean_hash = _require_hash(signed_payload_hash, field="signed_payload_hash")
+    clean_key_id = _require_real_non_empty_str(key_id, field="key_id")
+    clean_key_version = _require_real_positive_int(key_version, field="key_version")
     message = build_real_crypto_signature_input(
-        algorithm=algorithm,
-        domain_tag=domain_tag,
-        signed_payload_hash=signed_payload_hash,
-        key_id=key_id,
-        key_version=key_version,
+        algorithm=clean_algorithm,
+        domain_tag=clean_domain,
+        signed_payload_hash=clean_hash,
+        key_id=clean_key_id,
+        key_version=clean_key_version,
     )
     clean_private_ref = reject_test_only_private_key_reference(private_key_reference)
-    _require_backend_supports_algorithm(backend, algorithm)
+    _require_backend_supports_algorithm(backend, clean_algorithm)
     signature = _call_backend_sign(
         backend,
-        algorithm=algorithm,
+        algorithm=clean_algorithm,
         private_key_reference=clean_private_ref,
         message=message,
     )
-    clean_signature = require_non_empty_str(signature, field="signature")
+    clean_signature = _require_real_non_empty_str(signature, field="signature")
     decode_binary_signature_material(clean_signature, field="signature")
     return {
-        "algorithm": algorithm,
-        "key_id": key_id,
-        "key_version": key_version,
-        "signed_payload_hash": signed_payload_hash,
-        "domain_tag": domain_tag,
+        "algorithm": clean_algorithm,
+        "key_id": clean_key_id,
+        "key_version": clean_key_version,
+        "signed_payload_hash": clean_hash,
+        "domain_tag": clean_domain,
         "signature": clean_signature,
     }
 
@@ -239,18 +280,26 @@ def build_signature_entry_with_real_backend(
 def _validated_key_fields(key: dict[str, Any], *, algorithm: str, key_id: str, key_version: int) -> dict[str, Any]:
     if not isinstance(key, dict):
         raise QwgV4RealCryptoBackendError("registry key must be dict")
-    role = require_non_empty_str(key.get("role"), field="role")
+    if set(key.keys()) != _REGISTRY_KEY_FIELDS:
+        raise QwgV4RealCryptoBackendError("registry key fields must match required schema")
+    role = _require_real_non_empty_str(key.get("role"), field="role")
     if role != COMPONENT_ROLE:
         raise QwgV4RealCryptoBackendError("registry key role mismatch")
-    key_algorithm = require_supported_algorithm(key.get("algorithm"))
-    key_key_id = require_non_empty_str(key.get("key_id"), field="key_id")
-    key_key_version = require_positive_int(key.get("key_version"), field="key_version")
+    key_algorithm = _require_real_supported_algorithm(key.get("algorithm"))
+    key_key_id = _require_real_non_empty_str(key.get("key_id"), field="key_id")
+    key_key_version = _require_real_positive_int(key.get("key_version"), field="key_version")
     if (key_algorithm, key_key_id, key_key_version) != (algorithm, key_id, key_version):
         raise QwgV4RealCryptoBackendError("signature entry does not match registry key")
-    public_key = require_non_empty_str(key.get("public_key"), field="public_key")
+    public_key = _require_real_non_empty_str(key.get("public_key"), field="public_key")
     reject_test_only_key_material(key)
     decode_binary_signature_material(public_key, field="public_key")
-    return {"role": role, "algorithm": key_algorithm, "key_id": key_key_id, "key_version": key_key_version, "public_key": public_key}
+    return {
+        "role": role,
+        "algorithm": key_algorithm,
+        "key_id": key_key_id,
+        "key_version": key_key_version,
+        "public_key": public_key,
+    }
 
 
 def verify_signature_entry_with_real_backend(
@@ -263,19 +312,21 @@ def verify_signature_entry_with_real_backend(
 
     if not isinstance(entry, dict):
         raise QwgV4RealCryptoBackendError("signature entry must be dict")
-    algorithm = require_supported_algorithm(entry.get("algorithm"))
-    key_id = require_non_empty_str(entry.get("key_id"), field="key_id")
-    key_version = require_positive_int(entry.get("key_version"), field="key_version")
+    if set(entry.keys()) != _SIGNATURE_ENTRY_FIELDS:
+        raise QwgV4RealCryptoBackendError("signature entry fields must match required schema")
+    algorithm = _require_real_supported_algorithm(entry.get("algorithm"))
+    key_id = _require_real_non_empty_str(entry.get("key_id"), field="key_id")
+    key_version = _require_real_positive_int(entry.get("key_version"), field="key_version")
     checked_key = _validated_key_fields(key, algorithm=algorithm, key_id=key_id, key_version=key_version)
     _require_backend_supports_algorithm(backend, algorithm)
     message = build_real_crypto_signature_input(
         algorithm=algorithm,
-        domain_tag=require_non_empty_str(entry.get("domain_tag"), field="domain_tag"),
+        domain_tag=_require_real_non_empty_str(entry.get("domain_tag"), field="domain_tag"),
         signed_payload_hash=_require_hash(entry.get("signed_payload_hash"), field="signed_payload_hash"),
         key_id=key_id,
         key_version=key_version,
     )
-    signature = require_non_empty_str(entry.get("signature"), field="signature")
+    signature = _require_real_non_empty_str(entry.get("signature"), field="signature")
     decode_binary_signature_material(signature, field="signature")
     return _call_backend_verify(
         backend,
@@ -286,8 +337,10 @@ def verify_signature_entry_with_real_backend(
     )
 
 
-def make_real_crypto_signature_verifier(backend: QwgV4RealCryptoBackend) -> RealCryptoSignatureVerifier:
-    """Adapt a real crypto backend to the existing QWG v4 bundle verifier callback."""
+def make_real_crypto_signature_verifier(
+    backend: QwgV4RealCryptoBackend,
+) -> RealCryptoSignatureVerifier:
+    """Adapt a real crypto backend to the existing QWG bundle verifier callback."""
 
     def _verify(entry: dict[str, Any], key: dict[str, Any]) -> bool:
         return verify_signature_entry_with_real_backend(entry, key, backend=backend)
