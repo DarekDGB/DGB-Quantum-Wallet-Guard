@@ -17,6 +17,7 @@ from qwg.v4.real_crypto_backend import (
     verify_signature_entry_with_real_backend,
 )
 from qwg.v4.signing import COMPONENT_VERDICT_DOMAIN
+from qwg.v4.trust_profile import FIPS204_ML_DSA_65_PROFILE
 
 PAYLOAD_HASH = "c" * 64
 PUBLIC_KEY_BYTES = b"qwg-v4-real-ml-dsa-public-key"
@@ -131,6 +132,7 @@ def test_v48e_oqs_mldsa_backend_builds_real_b64u_signature_entry_and_verifies() 
     backend = OqsMlDsaBackend(private_key_resolver=resolver, oqs_module=FakeOqsModule())
     entry = build_signature_entry_with_real_backend(
         algorithm="ml-dsa",
+        standard_profile=FIPS204_ML_DSA_65_PROFILE,
         domain_tag=COMPONENT_VERDICT_DOMAIN,
         signed_payload_hash=PAYLOAD_HASH,
         key_id="shield_component_qwg-ml-dsa-v1",
@@ -157,6 +159,7 @@ def test_v48e_oqs_mldsa_backend_rejects_wrong_algorithm_and_mechanism() -> None:
     backend = OqsMlDsaBackend(private_key_resolver=resolver, oqs_module=FakeOqsModule())
     message = build_real_crypto_signature_input(
         algorithm="ml-dsa",
+        standard_profile=FIPS204_ML_DSA_65_PROFILE,
         domain_tag=COMPONENT_VERDICT_DOMAIN,
         signed_payload_hash=PAYLOAD_HASH,
         key_id="shield_component_qwg-ml-dsa-v1",
@@ -371,6 +374,7 @@ def test_v48g_qwg_oqs_mldsa_backend_validates_optional_backend_length_metadata()
     )
     message = build_real_crypto_signature_input(
         algorithm="ml-dsa",
+        standard_profile=FIPS204_ML_DSA_65_PROFILE,
         domain_tag=COMPONENT_VERDICT_DOMAIN,
         signed_payload_hash=PAYLOAD_HASH,
         key_id="shield_component_qwg-ml-dsa-v1",
