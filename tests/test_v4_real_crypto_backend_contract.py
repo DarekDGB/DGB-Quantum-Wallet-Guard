@@ -21,7 +21,11 @@ from qwg.v4.real_crypto_backend import (
     verify_signature_entry_with_real_backend,
 )
 from qwg.v4.signing import COMPONENT_VERDICT_DOMAIN, build_signature_bundle, verify_signature_bundle
-from qwg.v4.trust_profile import REQUIRED_ALGORITHMS
+from qwg.v4.trust_profile import (
+    FIPS204_ML_DSA_65_PROFILE,
+    REQUIRED_ALGORITHMS,
+    default_standard_profile_for_algorithm,
+)
 
 PAYLOAD_HASH = "a" * 64
 PUBLIC_KEY_BYTES = b"qwg-real-ml-dsa-public-key"
@@ -102,8 +106,10 @@ def real_key(*, algorithm: str = "ml-dsa", public_key: str | None = None) -> dic
 
 
 def signature_for_key(key: dict[str, Any], *, domain_tag: str = COMPONENT_VERDICT_DOMAIN) -> dict[str, Any]:
+    standard_profile = default_standard_profile_for_algorithm(key["algorithm"])
     message = build_real_crypto_signature_input(
         algorithm=key["algorithm"],
+        standard_profile=standard_profile,
         domain_tag=domain_tag,
         signed_payload_hash=PAYLOAD_HASH,
         key_id=key["key_id"],
@@ -118,6 +124,7 @@ def signature_for_key(key: dict[str, Any], *, domain_tag: str = COMPONENT_VERDIC
     )
     return {
         "algorithm": key["algorithm"],
+        "standard_profile": standard_profile,
         "key_id": key["key_id"],
         "key_version": key["key_version"],
         "signed_payload_hash": PAYLOAD_HASH,
@@ -129,6 +136,7 @@ def signature_for_key(key: dict[str, Any], *, domain_tag: str = COMPONENT_VERDIC
 def test_v48g_r4_qwg_real_crypto_signature_input_is_frozen_to_qwg_domain() -> None:
     encoded = build_real_crypto_signature_input(
         algorithm="ml-dsa",
+        standard_profile=FIPS204_ML_DSA_65_PROFILE,
         domain_tag=COMPONENT_VERDICT_DOMAIN,
         signed_payload_hash=PAYLOAD_HASH,
         key_id="shield_component_qwg-ml-dsa-v1",
@@ -140,6 +148,7 @@ def test_v48g_r4_qwg_real_crypto_signature_input_is_frozen_to_qwg_domain() -> No
         f"{COMPONENT_VERDICT_DOMAIN}\n"
         f"{PAYLOAD_HASH}\n"
         "ml-dsa\n"
+        "fips204-ml-dsa-65-v1\n"
         "shield_component_qwg-ml-dsa-v1\n"
         "1"
     ).encode("utf-8")
@@ -154,6 +163,8 @@ def test_v48g_r4_qwg_real_crypto_signature_input_is_frozen_to_qwg_domain() -> No
         ({"signed_payload_hash": "A" * 64}, "lowercase"),
         ({"signed_payload_hash": "a" * 63}, "64-character"),
         ({"signed_payload_hash": "z" * 64}, "sha256"),
+        ({"standard_profile": ""}, "standard_profile"),
+        ({"standard_profile": "fips206-draft-falcon1024-v1"}, "standard_profile"),
         ({"key_id": ""}, "key_id"),
         ({"key_id": " shield_component_qwg-ml-dsa-v1"}, "surrounding whitespace"),
         ({"key_version": 0}, "key_version"),
@@ -165,6 +176,7 @@ def test_v48g_r4_qwg_real_crypto_signature_input_rejects_ambiguous_values(
 ) -> None:
     base: dict[str, object] = {
         "algorithm": "ml-dsa",
+        "standard_profile": FIPS204_ML_DSA_65_PROFILE,
         "domain_tag": COMPONENT_VERDICT_DOMAIN,
         "signed_payload_hash": PAYLOAD_HASH,
         "key_id": "shield_component_qwg-ml-dsa-v1",
@@ -178,6 +190,7 @@ def test_v48g_r4_qwg_real_crypto_signature_input_rejects_ambiguous_values(
 def test_v48g_r4_qwg_real_crypto_signer_builds_b64u_entry_without_test_fallback() -> None:
     entry = build_signature_entry_with_real_backend(
         algorithm="ml-dsa",
+        standard_profile=FIPS204_ML_DSA_65_PROFILE,
         domain_tag=COMPONENT_VERDICT_DOMAIN,
         signed_payload_hash=PAYLOAD_HASH,
         key_id="shield_component_qwg-ml-dsa-v1",
@@ -187,6 +200,7 @@ def test_v48g_r4_qwg_real_crypto_signer_builds_b64u_entry_without_test_fallback(
     )
 
     assert entry["algorithm"] == "ml-dsa"
+    assert entry["standard_profile"] == FIPS204_ML_DSA_65_PROFILE
     assert entry["key_id"] == "shield_component_qwg-ml-dsa-v1"
     assert str(entry["signature"]).startswith("b64u:")
     assert decode_binary_signature_material(entry["signature"], field="signature")
@@ -203,6 +217,7 @@ def test_v48g_r4_qwg_real_crypto_signer_rejects_private_material_backend_gap_and
     with pytest.raises(QwgV4RealCryptoBackendUnavailable, match="support"):
         build_signature_entry_with_real_backend(
             algorithm="ml-dsa",
+            standard_profile=FIPS204_ML_DSA_65_PROFILE,
             domain_tag=COMPONENT_VERDICT_DOMAIN,
             signed_payload_hash=PAYLOAD_HASH,
             key_id="shield_component_qwg-ml-dsa-v1",
@@ -214,6 +229,7 @@ def test_v48g_r4_qwg_real_crypto_signer_rejects_private_material_backend_gap_and
     with pytest.raises(QwgV4RealCryptoBackendError, match="b64u"):
         build_signature_entry_with_real_backend(
             algorithm="ml-dsa",
+            standard_profile=FIPS204_ML_DSA_65_PROFILE,
             domain_tag=COMPONENT_VERDICT_DOMAIN,
             signed_payload_hash=PAYLOAD_HASH,
             key_id="shield_component_qwg-ml-dsa-v1",
@@ -227,6 +243,7 @@ def test_v48g_r4_qwg_real_crypto_backend_wrapper_catches_native_exceptions() -> 
     with pytest.raises(QwgV4RealCryptoBackendError, match="algorithm discovery") as algorithm_error:
         build_signature_entry_with_real_backend(
             algorithm="ml-dsa",
+            standard_profile=FIPS204_ML_DSA_65_PROFILE,
             domain_tag=COMPONENT_VERDICT_DOMAIN,
             signed_payload_hash=PAYLOAD_HASH,
             key_id="shield_component_qwg-ml-dsa-v1",
@@ -239,6 +256,7 @@ def test_v48g_r4_qwg_real_crypto_backend_wrapper_catches_native_exceptions() -> 
     with pytest.raises(QwgV4RealCryptoBackendError, match="sign failed closed") as sign_error:
         build_signature_entry_with_real_backend(
             algorithm="ml-dsa",
+            standard_profile=FIPS204_ML_DSA_65_PROFILE,
             domain_tag=COMPONENT_VERDICT_DOMAIN,
             signed_payload_hash=PAYLOAD_HASH,
             key_id="shield_component_qwg-ml-dsa-v1",
@@ -266,6 +284,7 @@ def test_v48g_r4_qwg_real_crypto_backend_wrapper_catches_native_exceptions() -> 
     with pytest.raises(QwgV4RealCryptoBackendUnavailable, match="hierarchy sign failure"):
         build_signature_entry_with_real_backend(
             algorithm="ml-dsa",
+            standard_profile=FIPS204_ML_DSA_65_PROFILE,
             domain_tag=COMPONENT_VERDICT_DOMAIN,
             signed_payload_hash=PAYLOAD_HASH,
             key_id="shield_component_qwg-ml-dsa-v1",
