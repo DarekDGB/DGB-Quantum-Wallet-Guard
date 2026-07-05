@@ -8,7 +8,7 @@ This document defines the QWG Shield v4 component-verdict contract.
 
 This is a parallel v4 contract. It does not modify or replace the audited v3.2 QWG deterministic contract.
 
-V4.8E adds a real ML-DSA backend adapter path for QWG component evidence. The deterministic TEST-ONLY path remains separate and is retained only for contract and CI locking.
+V4.8E added a real ML-DSA backend adapter path for QWG component evidence. V4.8H-B adds the QWG pilot FN-DSA optional-evidence contract with authenticated `standard_profile` binding. The deterministic TEST-ONLY path remains separate and is retained only for contract and CI locking.
 
 ## Authority Boundary
 
@@ -100,9 +100,25 @@ FN-DSA means FN-DSA, based on Falcon.
 
 FN-DSA is not ML-DSA and cannot satisfy the ML-DSA requirement.
 
-## Real ML-DSA Backend Path
+FN-DSA is optional additional evidence in V4.8H-B. FN-DSA absence is allowed while the required `classical-ed25519` and `ml-dsa` paths remain valid. FN-DSA present but invalid, malformed, unsupported, unresolvable, duplicated, wrong-role, wrong-hash, wrong-domain, or profile-mismatched is fatal.
 
-QWG V4.8E introduces an optional real backend adapter for the required `ml-dsa` path:
+## Standard Profiles
+
+Every signature entry carries an authenticated `standard_profile` field. QWG V4.8H-B locks these policy.v1 profiles:
+
+```text
+classical-ed25519 -> rfc8032-ed25519-v1
+ml-dsa            -> fips204-ml-dsa-65-v1
+fn-dsa            -> fips206-draft-falcon1024-v1
+```
+
+The FN-DSA profile is draft Falcon-1024 evidence only. Falcon-1024 is documented as NIST security level 5. ML-DSA-65 remains the required level-3 PQC path. This package makes no final FIPS 206 production claim.
+
+The `standard_profile` value is not display-only metadata. It is bound into the real-signature message bytes and into deterministic TEST-ONLY signature material so a profile flip after signing fails closed.
+
+## Real Backend Path
+
+QWG V4.8E introduced an optional real backend adapter for the required `ml-dsa` path:
 
 ```text
 src/qwg/v4/real_crypto_backend.py
@@ -122,6 +138,8 @@ The adapter:
 - rejects deterministic TEST-ONLY key material at the real backend boundary;
 - wraps native OQS/liboqs exceptions inside the QWG real-backend fail-closed error hierarchy;
 - provides no fallback from real backend mode to deterministic TEST-ONLY signatures.
+
+V4.8H-B extends the neutral real-crypto adapter entry shape to include `standard_profile` for all algorithms, including optional `fn-dsa`. The package does not add a live FN-DSA/Falcon backend. It locks the QWG component-side contract and signed-message bytes so a later dedicated backend can verify the same authenticated profile semantics.
 
 Real binary signatures and public keys use this encoding shape:
 
@@ -154,7 +172,13 @@ A verifier must reject:
 - missing required algorithm
 - duplicate algorithm entry
 - unknown algorithm
+- unsupported `standard_profile`
+- `standard_profile` flipped after signing
+- present-invalid FN-DSA optional evidence
+- present-but-unresolvable FN-DSA optional evidence
+- FN-DSA attempting to replace ML-DSA or classical evidence
 - wrong key id
+- wrong key role
 - revoked key
 - invalid key window
 - changed context hash
@@ -179,6 +203,6 @@ The original QWG v4 pilot uses deterministic TEST-ONLY signatures for contract a
 
 These test signatures are not production private keys and are not production ML-DSA or FN-DSA implementations.
 
-Production PQC adapters must satisfy the same signed payload, domain tag, key role, key version, freshness, and policy rules.
+Production PQC adapters must satisfy the same signed payload, domain tag, key role, key version, freshness, policy, `standard_profile`, and bundle-binding rules.
 
-The V4.8E OQS adapter is a real-backend path for QWG component evidence only. It does not create transaction signing, broadcast, consensus, or final-execution authority.
+The V4.8E OQS adapter is a real-backend path for QWG component evidence only. V4.8H-B adds optional FN-DSA policy and profile-binding proof only. Neither step creates transaction signing, broadcast, consensus, or final-execution authority.
