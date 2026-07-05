@@ -6,7 +6,7 @@ Author attribution: DarekDGB
 
 This document locks the QWG Shield v4 real-crypto backend boundary for component verdict evidence.
 
-V4.8E introduces a deployment-controlled real ML-DSA adapter path for QWG. It does not replace the deterministic TEST-ONLY signature path used by contract tests. It does not make QWG a transaction signer, broadcaster, consensus layer, wallet custody layer, or AdamantineOS final authority.
+V4.8E introduces a deployment-controlled real ML-DSA adapter path for QWG. V4.8H-B extends the neutral real-crypto signature-entry contract with authenticated `standard_profile` binding and optional FN-DSA draft-profile evidence semantics. These steps do not replace the deterministic TEST-ONLY signature path used by contract tests. They do not make QWG a transaction signer, broadcaster, consensus layer, wallet custody layer, or AdamantineOS final authority.
 
 ## Non-authority lock
 
@@ -27,11 +27,25 @@ The Shield Orchestrator verifies QWG component evidence before producing a Shiel
 
 Shield v4 policy `policy.v1` uses these names:
 
-- `classical-ed25519` — required classical signature path;
-- `ml-dsa` — required PQC path; ML-DSA was formerly CRYSTALS-Dilithium;
-- `fn-dsa` — optional evidence path based on Falcon.
+- `classical-ed25519` â required classical signature path;
+- `ml-dsa` â required PQC path; ML-DSA was formerly CRYSTALS-Dilithium;
+- `fn-dsa` â optional evidence path based on Falcon.
 
 `fn-dsa` is not ML-DSA. It must never override failure of the required `classical-ed25519` or `ml-dsa` paths.
+
+## Standard profile lock
+
+Every real signature entry carries `standard_profile`, and that value is part of the message signed by the backend.
+
+V4.8H-B allows these profiles:
+
+```text
+classical-ed25519 -> rfc8032-ed25519-v1
+ml-dsa            -> fips204-ml-dsa-65-v1
+fn-dsa            -> fips206-draft-falcon1024-v1
+```
+
+`fips206-draft-falcon1024-v1` means FN-DSA draft-profile evidence based on Falcon-1024. It is optional QWG hybrid evidence only. It is not final FIPS 206 proof. Future final-profile support must add a separate profile, KATs, registry keys, docs, and tests instead of reinterpreting draft signatures.
 
 ## Backend model
 
@@ -58,19 +72,16 @@ For Shield v4 `policy.v1`, the optional OQS backend maps:
 ```text
 Shield algorithm: ml-dsa
 OQS mechanism:    ML-DSA-65
+standard_profile: fips204-ml-dsa-65-v1
 ```
 
 The mechanism is deliberately locked for this backend. A caller cannot silently swap `ML-DSA-44`, `ML-DSA-87`, Falcon/FN-DSA, or another mechanism behind the Shield policy name.
 
 ## CI proof levels and gated real-liboqs job
 
-Default package CI proves the QWG real-backend adapter interface, binary-material parsing,
-fail-closed exception hierarchy, and component evidence wiring with deterministic backends.
-That default CI does not claim to execute live liboqs ML-DSA.
+Default package CI proves the QWG real-backend adapter interface, binary-material parsing, authenticated `standard_profile` binding, fail-closed exception hierarchy, and component evidence wiring with deterministic backends. That default CI does not claim to execute live liboqs ML-DSA or live FN-DSA/Falcon.
 
-Live liboqs ML-DSA proof is optional and gated so QWG does not gain a hard OQS/liboqs
-dependency. The dedicated job must set `SHIELD_V4_REAL_OQS=1`, install `oqs`/liboqs,
-write a JUnit report, disable default coverage addopts for the focused gated job, and run the not-skipped guard:
+Live liboqs ML-DSA proof is optional and gated so QWG does not gain a hard OQS/liboqs dependency. The dedicated job must set `SHIELD_V4_REAL_OQS=1`, install `oqs`/liboqs, write a JUnit report, disable default coverage addopts for the focused gated job, and run the not-skipped guard:
 
 ```text
 SHIELD_V4_REAL_OQS=1 python -m pytest \
@@ -80,10 +91,7 @@ SHIELD_V4_REAL_OQS=1 python -m pytest \
 python scripts/assert_real_oqs_junit_not_skipped.py .artifacts/v48g-real-oqs.xml
 ```
 
-The guard fails if the real-OQS job collects zero tests, skips any testcase, or records any
-failure/error. A public claim that live liboqs ML-DSA verified through QWG requires that
-gated job to pass with `skipped == 0`; release-grade real-backend proof remains a V4.10
-release gate.
+The guard fails if the real-OQS job collects zero tests, skips any testcase, or records any failure/error. A public claim that live liboqs ML-DSA verified through QWG requires that gated job to pass with `skipped == 0`; release-grade real-backend proof remains a V4.10 release gate.
 
 ## Frozen real-signature input
 
@@ -94,6 +102,7 @@ DGB-SHIELD-V4-REAL-CRYPTO-SIGNATURE-INPUT
 <domain_tag>
 <signed_payload_hash>
 <algorithm>
+<standard_profile>
 <key_id>
 <key_version>
 ```
@@ -105,13 +114,32 @@ Rules:
 - no trailing newline;
 - `domain_tag` must be `DGB-SHIELD-V4-COMPONENT-VERDICT:shield.verdict.v2:policy.v1`;
 - `signed_payload_hash` must be lowercase SHA-256 hex;
-- `algorithm`, `key_id`, and `key_version` must match the QWG trust-profile entry.
+- `algorithm`, `standard_profile`, `key_id`, and `key_version` must match QWG policy and the QWG trust-profile entry;
+- unsupported `standard_profile` values fail closed;
+- a `standard_profile` flip after signing fails signature verification.
 
-The `signed_payload_hash` is already computed over the domain-separated canonical QWG verdict payload. The real-signature input binds that hash to the concrete signature entry so signatures cannot be spliced across algorithms, keys, roles, or bundles.
+The `signed_payload_hash` is already computed over the domain-separated canonical QWG verdict payload. The real-signature input binds that hash to the concrete signature entry so signatures cannot be spliced across algorithms, profiles, keys, roles, or bundles.
+
+## FN-DSA optional evidence behavior
+
+For V4.8H-B, QWG may include `fn-dsa` as optional evidence over the same `signed_payload_hash` used by the required signatures.
+
+Decision rules:
+
+- required `classical-ed25519 + ml-dsa` still use AND semantics;
+- FN-DSA absent is allowed;
+- FN-DSA present and valid is recorded as optional evidence;
+- FN-DSA present but invalid is DENY;
+- FN-DSA present but no active QWG `fn-dsa` trust-profile key is DENY;
+- unsupported FN-DSA `standard_profile` is DENY;
+- duplicate FN-DSA entries are DENY;
+- valid FN-DSA cannot rescue failed or missing `classical-ed25519` or `ml-dsa`.
+
+No live FN-DSA/Falcon backend is added in V4.8H-B. The package locks the QWG component contract, KAT, and verifier behavior so a later backend can be added without changing the signed-message format.
 
 ## Binary encoding lock
 
-Real ML-DSA signatures and public keys are binary. QWG real backend adapters use explicit unpadded base64url encoding with the prefix:
+Real ML-DSA, future FN-DSA, and other real signatures/public keys are binary. QWG real backend adapters use explicit unpadded base64url encoding with the prefix:
 
 ```text
 b64u:<unpadded-base64url-bytes>
@@ -120,7 +148,7 @@ b64u:<unpadded-base64url-bytes>
 Rules:
 
 - real binary signatures use `b64u:`;
-- real OQS public keys use `b64u:` in the QWG trust profile;
+- real public keys use `b64u:` in the QWG trust profile;
 - padding characters (`=`) are rejected;
 - malformed base64url is rejected before calling a crypto backend;
 - structurally valid base64url that decodes to backend-invalid key or signature lengths must fail closed through `QwgV4RealCryptoBackendError`;
@@ -140,14 +168,14 @@ There is no automatic fallback from real backend mode to TEST-ONLY deterministic
 
 ## Policy status
 
-This step adds the real ML-DSA path for QWG. Shield v4 `policy.v1` still requires both:
+Shield v4 `policy.v1` still requires both:
 
 ```text
 classical-ed25519
 ml-dsa
 ```
 
-A production real-backend deployment must satisfy both required paths. This QWG OQS adapter alone does not downgrade policy.v1 and does not allow ML-DSA to replace the required classical path.
+A production real-backend deployment must satisfy both required paths. This QWG OQS adapter alone does not downgrade policy.v1 and does not allow ML-DSA or FN-DSA to replace the required classical path.
 
 ## Third-party attribution
 
