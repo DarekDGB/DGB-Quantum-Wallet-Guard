@@ -92,7 +92,7 @@ SHIELD_V4_REAL_OQS=1 python -m pytest \
 python scripts/assert_real_oqs_junit_not_skipped.py .artifacts/v48g-real-oqs.xml
 ```
 
-No final FN-DSA/FIPS 206 public claim is made by V4.8H-B. A live FN-DSA/Falcon backend would require its own dedicated gated proof and not-skipped guard later.
+No final FN-DSA/FIPS 206 public claim is made by V4.8H-B or V4.8H-E. V4.8H-E adds the dedicated gated Falcon-1024 proof path and still requires the not-skipped guard before any public live-Falcon claim.
 
 ## V4.8G-R4 Audit Cleanup Checks
 
@@ -127,6 +127,26 @@ domain: DGB-SHIELD-V4-COMPONENT-VERDICT:shield.verdict.v2:policy.v1
 ```
 
 The KAT is TEST-ONLY message-construction evidence. It is not production key material, not production FN-DSA, and not final FIPS 206 proof.
+
+## V4.8H-E Full Hybrid and Live-Falcon Checks
+
+V4.8H-E adds these checks:
+
+```text
+tests/test_v48h_e_oqs_falcon_backend.py
+tests/test_v48h_e_real_oqs_falcon_backend.py
+```
+
+The deterministic backend-contract test proves Falcon-1024 adapter wiring, `b64u:` binary material parsing, wrong-algorithm denial, disabled-mechanism denial, native exception fail-closed handling, and `standard_profile` binding.
+
+The real-liboqs test is gated and must be run only by the dedicated PQC workflow with:
+
+```text
+SHIELD_V4_REAL_OQS=1
+SHIELD_V4_REAL_OQS_FALCON=1
+```
+
+A live Falcon-1024 claim requires the dedicated PQC workflow JUnit guard to report `skipped == 0`, `failures == 0`, and `errors == 0`. FN-DSA remains optional evidence and is not final FIPS 206 proof.
 
 ## Authority Boundary
 
