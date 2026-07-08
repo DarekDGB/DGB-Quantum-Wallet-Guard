@@ -139,7 +139,7 @@ The adapter:
 - wraps native OQS/liboqs exceptions inside the QWG real-backend fail-closed error hierarchy;
 - provides no fallback from real backend mode to deterministic TEST-ONLY signatures.
 
-V4.8H-B extends the neutral real-crypto adapter entry shape to include `standard_profile` for all algorithms, including optional `fn-dsa`. The package does not add a live FN-DSA/Falcon backend. It locks the QWG component-side contract and signed-message bytes so a later dedicated backend can verify the same authenticated profile semantics.
+V4.8H-B extends the neutral real-crypto adapter entry shape to include `standard_profile` for all algorithms, including optional `fn-dsa`. V4.8H-E then adds the gated live Falcon-1024 backend path against the same authenticated profile semantics.
 
 Real binary signatures and public keys use this encoding shape:
 
@@ -197,6 +197,19 @@ A verifier must reject:
 - native OQS/liboqs signing, verification, mechanism-discovery, or version-discovery exception
 - deterministic TEST-ONLY material at the real backend boundary
 
+## V4.8H-E Live Falcon-1024 Backend Extension
+
+V4.8H-E adds a backend adapter for optional FN-DSA evidence using liboqs `Falcon-1024` under the locked Shield profile `fips206-draft-falcon1024-v1`.
+
+The extension keeps the same component-verdict contract:
+
+- `classical-ed25519` and `ml-dsa` remain required under `policy.v1`;
+- FN-DSA remains optional evidence;
+- present-invalid FN-DSA remains fatal;
+- a valid FN-DSA signature never rescues a failed required signature;
+- the `standard_profile` remains authenticated inside the real-signature input;
+- this component still does not sign transactions, broadcast, change DigiByte consensus, or grant AdamantineOS final authority.
+
 ## Test-Only Cryptography Warning
 
 The original QWG v4 pilot uses deterministic TEST-ONLY signatures for contract and CI locking.
@@ -205,4 +218,4 @@ These test signatures are not production private keys and are not production ML-
 
 Production PQC adapters must satisfy the same signed payload, domain tag, key role, key version, freshness, policy, `standard_profile`, and bundle-binding rules.
 
-The V4.8E OQS adapter is a real-backend path for QWG component evidence only. V4.8H-B adds optional FN-DSA policy and profile-binding proof only. Neither step creates transaction signing, broadcast, consensus, or final-execution authority.
+The V4.8E OQS adapter is a real-backend path for QWG component evidence only. V4.8H-B adds optional FN-DSA policy and profile-binding proof, and V4.8H-E adds a gated Falcon-1024 backend proof path. None of these steps creates transaction signing, broadcast, consensus, or final-execution authority.
