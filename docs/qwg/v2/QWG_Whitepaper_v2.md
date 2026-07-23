@@ -2,10 +2,14 @@
 
 **Layer‑5: Quantum‑Era Wallet Behaviour Protection for DigiByte**
 
-Author: **DarekDGB (@Darek_DGB)**  
-AI Engineering Assistant: **Angel**  
-Status: **v2 – Reference Implementation (Experimental)**  
+Author: **DarekDGB**
+Status: **v2 – Historical design reference; non-authoritative**
 License: **MIT**
+
+> **Control notice:** This v2 document is historical and non-authoritative.
+> The executable QWG-SIM-001 dormant-sweep prototype is formally retired and
+> is not part of the current API. Neither this document nor QWG grants wallet
+> action, execution, signing, broadcast or DigiByte consensus authority.
 
 ---
 
@@ -17,72 +21,79 @@ threat model for digital assets is evolving.
 
 For years, security discussions focused almost exclusively on:
 
-- consensus rules  
-- hash algorithms  
-- signature schemes  
-- node‑level vulnerabilities  
+- consensus rules
+- hash algorithms
+- signature schemes
+- node‑level vulnerabilities
 
 In practice, **the wallet has become the new battlefield**:
 
-- large custodial wallets protecting exchange funds  
-- multi‑sig treasuries  
-- long‑dormant cold wallets holding early coins  
-- retail users interacting with dozens of apps and websites  
+- large custodial wallets protecting exchange funds
+- multi‑sig treasuries
+- long‑dormant cold wallets holding early coins
+- retail users interacting with dozens of apps and websites
 
 A future capable quantum adversary does not have to break the entire
 network at once. It is enough to selectively target **high‑value keys**
 and drain wallets in a way that looks “organic” to traditional tools.
 
-QWG (Quantum Wallet Guard) is designed to protect DigiByte and other
-UTXO‑based chains at this critical layer: **wallet behaviour over time**.
+The historical QWG v2 design was intended to protect DigiByte and other
+UTXO‑based chains at this critical layer: **wallet behaviour over time**. The
+current runtime does not observe wallet behaviour over time; it evaluates one
+caller-supplied, transaction-scoped `RiskContext` at a time.
 
 ---
 
 ## 2. Role in the 5‑Layer Quantum Shield
 
-QWG is part of a broader defensive architecture:
+The historical design positioned QWG within a broader defensive architecture:
 
-1. **Sentinel AI v2** – monitors node, mempool and chain health  
-2. **DQSN v2** – aggregates and scores threat signals across many nodes  
-3. **ADN v2** – local autonomous defense node; performs lock‑downs  
-4. **Guardian Wallet v2** – user‑facing wallet guard & UX controls  
-5. **Quantum Wallet Guard v2 (QWG)** – deep analysis of wallet flow
+1. **Sentinel AI v2** – proposed node, mempool and chain-health monitoring
+2. **DQSN v2** – proposed aggregation and scoring of multi-node threat signals
+3. **ADN v2** – proposed local defensive signaling, without final execution
+   authority
+4. **Guardian Wallet v2** – proposed user-facing wallet guard and UX controls
+5. **Quantum Wallet Guard v2 (QWG)** – proposed analysis of wallet-flow
    patterns
 
-Above these sits the **Adaptive Core**, which learns from all layers and
-updates policies and thresholds over time.
+The design also described an **Adaptive Core** that could learn from those
+layers and propose policy or threshold updates. That description does not grant
+QWG, Adaptive Core or any upstream signal execution authority. AdamantineOS
+remains the final fail-closed policy and execution boundary for Shield
+evidence.
 
-Within this stack, QWG is the specialist focused on **patterns of fund
-movement**, especially those that could indicate **quantum‑style
-attacks**.
+Within that historical design, QWG was the specialist for **patterns of fund
+movement**, especially those that could indicate **quantum-style attacks**.
+The current QWG runtime implements only the transaction-scoped decision
+contract described in Sections 5 and 6.
 
 ---
 
 ## 3. Threat Model
 
-QWG is not designed to replace post‑quantum cryptography. Instead, it
-assumes that the cryptographic layer will eventually be upgraded, but
-that **behavioural early‑warning systems are needed today**.
+The historical design did not propose replacing post-quantum cryptography. It
+assumed that the cryptographic layer would eventually be upgraded while
+behavioural early-warning concepts were explored separately.
 
 ### 3.1 Adversary Capabilities
 
 We consider adversaries who may:
 
-- Gain access to a subset of private keys (classical or quantum means)  
-- Operate many compromised wallets in a coordinated fashion  
-- Move funds slowly over time to avoid naive alerts  
-- Split sweeps through intermediary addresses to blur visibility  
-- Target long‑dormant or “forgotten” wallets in waves  
+- Gain access to a subset of private keys (classical or quantum means)
+- Operate many compromised wallets in a coordinated fashion
+- Move funds slowly over time to avoid naive alerts
+- Split sweeps through intermediary addresses to blur visibility
+- Target long‑dormant or “forgotten” wallets in waves
 
 We also assume the attacker can:
 
-- Automate withdrawals  
-- Exploit weak monitoring at exchanges or custodians  
-- Take advantage of fragmented logging or siloed systems  
+- Automate withdrawals
+- Exploit weak monitoring at exchanges or custodians
+- Take advantage of fragmented logging or siloed systems
 
 ### 3.2 Attack Patterns of Interest
 
-QWG focuses on patterns such as:
+The historical design considered patterns such as:
 
 - **Dormant Key Sweep** – many old, inactive wallets suddenly moving
   toward one or a few aggregation points.
@@ -93,9 +104,9 @@ QWG focuses on patterns such as:
 - **Entropy‑Weak Rhythm** – repeated signing with suspiciously regular
   timing or volume (indicative of scripted or automated control).
 
-These patterns are subtle and often **span multiple transactions and
-wallets**. They are not easily identified by checking one transaction in
-isolation.
+These proposed patterns span multiple transactions and wallets. They are
+retained here as historical threat-model context only; the current runtime does
+not detect, correlate or label them.
 
 ---
 
@@ -103,17 +114,17 @@ isolation.
 
 QWG is built around several guiding principles:
 
-1. **Non‑invasive** – no changes to DigiByte consensus or crypto.  
-2. **Composable** – works as a module in a larger security stack.  
-3. **Observable & Explainable** – risk scores come with context and
-   pattern labels.  
+1. **Non‑invasive** – no changes to DigiByte consensus or crypto.
+2. **Composable** – works as a module in a larger security stack.
+3. **Observable & Explainable** – decisions carry reasons and stable reason
+   identifiers.
 4. **Chain‑agnostic** – designed for DigiByte first, but other UTXO
-   chains can reuse it.  
-5. **Adaptive‑ready** – can feed into and receive updates from the
-   Adaptive Core.
+   chains can reuse it.
+5. **Adaptive‑ready** – can emit optional evidence to a caller-supplied
+   integration sink.
 
-The goal is not to “stop every transaction”, but to make sure **high
-risk flows cannot pass silently**.
+The current implementation provides policy evidence to an integrating system.
+It does not itself execute, sign, broadcast, freeze or reject a transaction.
 
 ---
 
@@ -121,50 +132,38 @@ risk flows cannot pass silently**.
 
 ### 5.1 Quantum‑Style Risk Score (QRS)
 
-QWG uses a **Quantum‑Style Risk Score (QRS)**:
+The historical design proposed a **Quantum‑Style Risk Score (QRS)**:
 
-- Integer range `0–100`  
+- Integer range `0–100`
 - Aggregates multiple signals:
-  - timing and rhythm of withdrawals  
-  - number of wallets involved  
-  - UTXO fragmentation and recombination patterns  
-  - destination clustering (aggregation addresses)  
-  - policy‑driven flags from DQSN / Sentinel / Guardian  
+  - timing and rhythm of withdrawals
+  - number of wallets involved
+  - UTXO fragmentation and recombination patterns
+  - destination clustering (aggregation addresses)
+  - policy‑driven flags from DQSN / Sentinel / Guardian
 - Mapped to levels: `LOW`, `ELEVATED`, `HIGH`, `CRITICAL`
 
-The QRS is not a claim that “quantum attack is happening”, but a
-probabilistic indicator that **behaviour matches patterns we expect from
-a powerful, automated adversary**.
+The current QWG decision engine does not implement this multi-wallet score,
+its proposed feature aggregation or its pattern labels. The concept is
+retained only as historical design context and cannot be cited as current API
+behaviour or attack-detection evidence.
 
 ### 5.2 RiskContext
 
-`RiskContext` is a long‑lived object representing the **state of a
-session, wallet, account or operator context**. It may track:
-
-- history of incoming and outgoing flows  
-- device or session identifiers (if provided)  
-- links to Guardian Wallet signals (user behaviour)  
-- external alerts from DQSN or Sentinel AI  
-
-This allows QWG to reason not just about “one transaction”, but about
-the *trajectory* of behaviour.
+`RiskContext` is a transaction-scoped snapshot. It carries Sentinel and ADN
+risk levels, a DQSN network score, wallet balance, transaction amount, address
+age, behaviour score and device-trust data. It does not maintain multi-wallet
+sweep history or destination-clustering state.
 
 ### 5.3 Engine and Policies
 
-`QWGEngine` consumes structured events (e.g. “sweep from wallet A to X1,
-10 UTXOs, 12,000 DGB”) and evaluates them under the current `RiskContext`
-and `Policies`.
+`DecisionEngine` evaluates a supplied `RiskContext` under `WalletPolicy` and
+returns a `DecisionResult`. Current policy fields cover full-balance
+protection, external-risk tolerance, transaction ratios, cooldowns,
+behaviour/device checks and an extra-authentication amount.
 
-`Policies` encode:
-
-- thresholds for QRS levels  
-- combinations of signals that qualify as `DORMANT_KEY_SWEEP` or other
-  pattern tags  
-- escalation rules (e.g. repeated suspicious events → CRITICAL)  
-
-The separation between `Engine` and `Policies` is intentional so that
-the **Adaptive Core** or human operators can refine policies without
-rewriting engine internals.
+The separation between engine and policy keeps thresholds explicit. Any policy
+change remains subject to validation by the integrating system.
 
 ---
 
@@ -172,73 +171,68 @@ rewriting engine internals.
 
 At code level (see README for file listing), the main components are:
 
-- `engine.py` – implements `QWGEngine`, the central entry point.  
-- `risk_context.py` – tracks state needed across multiple events.  
-- `policies.py` – declarative rules for thresholds and pattern logic.  
-- `decisions.py` – result objects, risk levels, and helper structures.  
-- `adaptive_bridge.py` – hooks for communication with Adaptive Core.  
-- `examples/` – concrete scenarios, including a dormant key sweep.  
-- `tests/` – unit tests and scenario tests for QWG behaviour.
+- `engine.py` – implements `DecisionEngine`, the transaction-policy entry
+  point.
+- `risk_context.py` – defines the transaction-scoped security snapshot.
+- `policies.py` – defines `WalletPolicy`.
+- `decisions.py` – defines decision values and structured results.
+- `adaptive_bridge.py` – provides optional best-effort evidence emission.
+- `examples/` – contains maintained transaction-policy examples.
+- `tests/` – covers current engine, policy, decision and bridge behaviour.
 
-Integration is done by instantiating a `RiskContext` and `QWGEngine`,
-then feeding events into the engine as they occur.
+Integration constructs a validated `RiskContext`, evaluates it with
+`DecisionEngine`, and interprets the result under the integrator's own final
+policy.
 
 ---
 
 ## 7. Dormant Key Sweep Scenario (QWG‑SIM‑001)
 
-To make the system concrete, QWG ships with a documented simulation:
+`QWG-QuantumAttackScenario-1.md` is retained as a historical,
+documentation-only threat scenario. It describes a synthetic sequence in
+which wallets `A`, `B` and `C` move UTXOs toward aggregation addresses `X1`
+and `X2`.
 
-- Specified in `QWG-QuantumAttackScenario-1.md`  
-- Implemented in `examples/dormant_key_sweep_scenario.py`  
-- Tested via `tests/test_dormant_key_sweep.py`
-
-The scenario simulates multiple wallets (`A`, `B`, `C`) moving UTXOs in a
-coordinated sequence to aggregation addresses (`X1`, `X2`). Although the
-numbers are synthetic, the pattern is intended to mirror what a
-real‑world quantum adversary might do when draining long‑dormant keys.
-
-The example demonstrates:
-
-- how QRS climbs with each step  
-- at which point risk escalates to `HIGH` or `CRITICAL`  
-- how the engine labels the pattern (e.g. `DORMANT_KEY_SWEEP`)  
-
-This gives DigiByte developers and integrators a **tangible feel** for
-how QWG reacts to structured attack patterns.
+The executable prototype and its associated test are formally retired because
+the proposed multi-event analytics contract is not part of the current
+runtime. The illustrative scores and labels in the scenario were not produced
+by current QWG code and must not be used as implementation, coverage or attack
+detection evidence.
 
 ---
 
 ## 8. Integration Paths
 
-QWG is designed to be embedded into a variety of DigiByte‑aligned
-systems:
+The current decision component can be evaluated for possible use by
+DigiByte-aligned systems. Every integration must validate its inputs and retain
+its own final policy and execution boundary.
 
 ### 8.1 Exchanges and Custodians
 
-- Wrap withdrawal flows with QWG checks.  
-- Require extra approval, cooling‑off time or multi‑factor verification
-  on `HIGH` / `CRITICAL` events.  
-- Feed anonymised statistics back into Adaptive Core for improved
-  learning.
+- Evaluate transaction-scoped context before a withdrawal.
+- Interpret warnings, delays, blocks or extra-authentication requests under
+  independently controlled policy.
+- A separate integration could emit anonymised evidence to a caller-supplied
+  sink; any later use remains outside QWG authority.
 
 ### 8.2 DigiDollar Infrastructure
 
-DigiDollar stability and oracle components can integrate QWG to monitor:
+DigiDollar stability and oracle components could supply transaction and
+external-risk context for local evaluation of:
 
-- large rebalancing transactions  
-- cross‑chain bridge movements  
-- multi‑wallet sweeps when oracle keys or treasury wallets move funds.
+- large rebalancing transactions
+- cross‑chain bridge movements
+- transaction-scoped treasury or oracle operations.
 
 ### 8.3 High‑Value Personal or Institutional Wallets
 
 Advanced users or institutions holding large long‑term positions can
 run QWG as part of a **local security stack**:
 
-- QWG scores outgoing flows before they are broadcast.  
-- Guardian Wallet UX reflects the QRS (e.g. warnings, delay, friction).  
-- ADN v2 can receive alerts to restrict RPC or node behaviour if
-  something looks catastrophic.
+- An application can evaluate a transaction context before broadcast.
+- Wallet UX can present the returned decision and reason.
+- A separate, authoritative component decides whether any restriction is
+  appropriate.
 
 ---
 
@@ -247,17 +241,18 @@ run QWG as part of a **local security stack**:
 QWG does **not** attempt to implement or replace post‑quantum
 signatures. Instead, it acknowledges that:
 
-- PQC migration will take time.  
-- There may be multiple candidate schemes and transition phases.  
+- PQC migration will take time.
+- There may be multiple candidate schemes and transition phases.
 - Even after PQC adoption, **behavioural anomalies remain valuable
   indicators of compromise**.
 
-Thus QWG is designed to work **before, during and after** PQC migration:
+Behavioural policy evidence may remain useful **before, during and after** PQC
+migration:
 
-- **Before** – as a proactive detector of high‑risk patterns.  
-- **During** – to monitor legacy vs PQC address interactions and sweeps.  
-- **After** – as an additional line of defense for any future class of
-  automated or AI‑assisted attacks.
+- **Before** – to evaluate current transaction and external-risk signals.
+- **During** – to complement, but never replace, cryptographic migration
+  controls.
+- **After** – as one input to independently controlled wallet policy.
 
 ---
 
@@ -265,9 +260,12 @@ Thus QWG is designed to work **before, during and after** PQC migration:
 
 QWG is intentionally scoped:
 
-- It does not claim mathematical proof of quantum attack.  
-- It depends on integrators supplying correct event data.  
-- It can generate false positives if policies are too aggressive.  
+- It does not claim mathematical proof of quantum attack.
+- It depends on integrators supplying correct context data.
+- It can generate false positives if policies are too aggressive.
+- It does not implement the retired multi-wallet dormant-sweep analytics
+  design.
+- It does not sign, broadcast, freeze funds or change consensus.
 - It does not see off‑chain social engineering or phishing on its own
   (this is where Guardian Wallet v2 contributes).
 
@@ -278,22 +276,19 @@ or higher‑level systems remain in the loop** to interpret alerts.
 
 ## 11. Roadmap
 
-The current v2 release is a **reference implementation** suitable for:
-
-- code review  
-- testnet experimentation  
-- integration trials in staging environments  
+This historical v2 whitepaper is not deployment authorization. The current
+implementation, tests and controlled release evidence must be evaluated
+directly before any staging or integration decision.
 
 Planned future directions include:
 
-- more scenario libraries (multi‑bridge attacks, flash sweeps, etc.)  
-- deeper integration with Sentinel AI v2 and DQSN v2 signals  
-- optional cryptographic hooks to distinguish legacy vs PQC addresses  
+- separately specified and implemented behavioural analytics
+- deeper integration with Sentinel AI v2 and DQSN v2 signals
+- optional cryptographic hooks to distinguish legacy vs PQC addresses
 - policy sets tuned for different risk profiles (retail vs custodial vs
   treasury)
 
-As the Adaptive Core matures, we expect QWG policies to evolve based on
-real‑world data and red‑team exercise results.
+Roadmap items are proposals, not current capabilities.
 
 ---
 
@@ -304,21 +299,13 @@ Quantum Wallet Guard (QWG) extends that philosophy into the wallet
 layer, where human behaviour, automation and future quantum threats all
 intersect.
 
-By analysing how funds move — not just which algorithm signs them — QWG
-provides DigiByte and its ecosystem with an additional line of defense
-that is:
+This whitepaper records the historical v2 motivation and design. Current QWG
+code provides explainable transaction-policy decisions, while the retired
+dormant-sweep concept remains documentation only. Capability claims must come
+from implemented code, tests and controlled evidence, not from this paper.
 
-- chain‑agnostic  
-- explainable  
-- adaptable  
-- ready for testnet today  
-
-This whitepaper describes the reference v2 design. The implementation in
-this repository is open under MIT license so that the DigiByte community
-and other projects can review, extend and deploy it in the way that best
-protects their users.
+The repository is open under the MIT license for review and development.
 
 For questions, experimentation or collaboration, please contact:
 
-**@Darek_DGB** on X.
-
+**DarekDGB**.
