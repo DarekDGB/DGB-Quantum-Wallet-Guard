@@ -48,7 +48,7 @@ class RiskContext:
     # Signals from Sentinel AI v2 / chain
     sentinel_level: RiskLevel = RiskLevel.NORMAL
 
-    # Signals from DQSN (network-wide score 0.0â1.0)
+    # Signals from DQSN (network-wide score from 0.0 to 1.0)
     dqs_network_score: float = 0.0
 
     # Signals from ADN v2 (node-local)
