@@ -102,6 +102,26 @@ FN-DSA is not ML-DSA and cannot satisfy the ML-DSA requirement.
 
 FN-DSA is optional additional evidence in V4.8H-B. FN-DSA absence is allowed while the required `classical-ed25519` and `ml-dsa` paths remain valid. FN-DSA present but invalid, malformed, unsupported, unresolvable, duplicated, wrong-role, wrong-hash, wrong-domain, or profile-mismatched is fatal.
 
+### Canonical Signature-Bundle Order
+
+QWG producers must emit signature entries in this exact `policy.v1` order:
+
+```text
+classical-ed25519
+ml-dsa
+fn-dsa, when present
+```
+
+The bundle builder canonicalizes supported input entries into that sequence
+without mutating or aliasing the caller's list. A verifier must not repair,
+sort, or otherwise normalize a received bundle. Reversed or interleaved
+algorithm sequences are malformed and must fail before trust-registry lookup or
+cryptographic verification.
+
+This ordering rule does not change strict required-signature AND semantics.
+FN-DSA remains optional-last evidence only. It cannot replace or rescue either
+required algorithm.
+
 ## Standard Profiles
 
 Every signature entry carries an authenticated `standard_profile` field. QWG V4.8H-B locks these policy.v1 profiles:
@@ -177,6 +197,7 @@ A verifier must reject:
 - present-invalid FN-DSA optional evidence
 - present-but-unresolvable FN-DSA optional evidence
 - FN-DSA attempting to replace ML-DSA or classical evidence
+- reversed or interleaved signature algorithms
 - wrong key id
 - wrong key role
 - revoked key
