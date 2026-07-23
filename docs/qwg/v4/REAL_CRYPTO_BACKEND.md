@@ -27,9 +27,9 @@ The Shield Orchestrator verifies QWG component evidence before producing a Shiel
 
 Shield v4 policy `policy.v1` uses these names:
 
-- `classical-ed25519` Ã¢ÂÂ required classical signature path;
-- `ml-dsa` Ã¢ÂÂ required PQC path; ML-DSA was formerly CRYSTALS-Dilithium;
-- `fn-dsa` Ã¢ÂÂ optional evidence path based on Falcon.
+- `classical-ed25519` - required classical signature path;
+- `ml-dsa` - required PQC path; ML-DSA was formerly CRYSTALS-Dilithium;
+- `fn-dsa` - optional evidence path based on Falcon.
 
 `fn-dsa` is not ML-DSA. It must never override failure of the required `classical-ed25519` or `ml-dsa` paths.
 
