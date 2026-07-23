@@ -1,30 +1,38 @@
 # 🛡 QWG Code Blueprint — v2
 
-Author: **DarekDGB (@Darek_DGB)**  
-AI Engineering Assistant: **Angel**  
-Status: **v2 – Code-Level Blueprint**  
+Author: **DarekDGB**
+Status: **v2 – Historical code snapshot**
 License: **MIT**
+
+> **Control notice:** This v2 document is historical and non-authoritative.
+> The executable QWG-SIM-001 dormant-sweep prototype is formally retired and
+> is not part of the current API. Neither this document nor QWG grants wallet
+> action, execution, signing, broadcast or DigiByte consensus authority.
 
 ---
 
 ## 1. Purpose of This Document
 
-This blueprint gives DigiByte core developers, security engineers and integrators a
-**file-by-file view** of the Quantum Wallet Guard (QWG) codebase.
+This blueprint preserves a **historical v2-oriented snapshot** of selected
+Quantum Wallet Guard (QWG) files. It is not a complete or authoritative map of
+the current repository; current source, manifests and tests take precedence.
 
 It explains:
 
-- what each module does  
-- how components depend on each other  
-- where to extend or hook into the system  
-- how examples and tests are structured  
+- the intended role of selected v2 modules
+- the historical relationships between those components
+- the example and test structure recorded at that time
+- corrected retirement boundaries for QWG-SIM-001
 
-If you are reviewing the project for testnet or integration, this is the
-map of the entire Layer-5 engine.
+Do not use this snapshot to infer that a listed path or capability remains in a
+later release.
 
 ---
 
-## 2. Top-Level Layout
+## 2. Historical Top-Level Layout Snapshot
+
+The following list is retained to show the v2-oriented structure covered by
+this document. It is intentionally not a complete current inventory.
 
 ```text
 .github/workflows/
@@ -34,7 +42,6 @@ examples/
     adaptive_core_bridge_example.py
     basic_usage.py
     behaviour_and_device.py
-    dormant_key_sweep_scenario.py
     high_risk_scenario.py
 
 src/qwg/
@@ -48,7 +55,6 @@ src/qwg/
 tests/
     test_adaptive_bridge.py
     test_decisions.py
-    test_dormant_key_sweep.py
     test_engine.py
     test_policies.py
 
@@ -68,18 +74,20 @@ README.md
 
 ### 3.1 `__init__.py`
 
-- Exposes the public API for `qwg` as a package.  
-- Typically re-exports:
-  - `QWGEngine`
+- Exposes the public API for `qwg` as a package.
+- Re-exports:
+  - `DecisionEngine`
   - `RiskContext`
-  - key enums / decision types
+  - `RiskLevel`
+  - `WalletPolicy`
+  - `Decision` and `DecisionResult`
 
 Integration code may choose between:
 
 ```python
-from qwg import QWGEngine, RiskContext
+from qwg import DecisionEngine, RiskContext
 # or
-from qwg.engine import QWGEngine
+from qwg.engine import DecisionEngine
 from qwg.risk_context import RiskContext
 ```
 
@@ -87,58 +95,56 @@ from qwg.risk_context import RiskContext
 
 ### 3.2 `engine.py`
 
-**Role:** Central risk engine for QWG.
+**Role:** Policy-driven transaction decision engine for QWG.
 
 Key responsibilities:
 
-- Accepts structured events (e.g. sweep-like wallet movements).  
-- Calls into `RiskContext` to read/update state.  
-- Evaluates policies defined in `policies.py`.  
-- Produces a `Decision` / `DecisionResult` with:
-  - `qrs_score`
-  - `risk_level`
-  - `pattern` (e.g. `DORMANT_KEY_SWEEP`)
-  - optional `details`.
+- Accepts a transaction-scoped `RiskContext` snapshot.
+- Evaluates the ordered rules configured by `WalletPolicy`.
+- Returns a `DecisionResult` containing the decision, stable reason, and any
+  cooldown, suggested limit or extra-authentication flags.
+- Can emit a best-effort Adaptive Core event when the supplied context has a
+  compatible adaptive sink.
+- Provides a deterministic v3 verdict wrapper without changing the underlying
+  v2 decision logic.
 
 Typical flow inside:
 
-1. Normalise event data.  
-2. Update context (timing, history, wallet links).  
-3. Compute raw metrics (timing bursts, clustering, etc.).  
-4. Call policy helpers to derive scores and pattern tags.  
-5. Convert to final decision object from `decisions.py`.  
-6. Optionally pass event + decision to `adaptive_bridge.py`.
+1. Inspect Sentinel and ADN risk levels.
+2. Apply the configured wallet-risk ceiling.
+3. Check full-balance, extra-authentication and transaction-ratio rules.
+4. Check behaviour and trusted-device signals.
+5. Return a structured result from `decisions.py`.
+6. Optionally emit the decision through `adaptive_bridge.py`.
 
 Extension points:
 
-- Add new engine methods for additional event types.  
-- Add new scoring factors and include them in QRS.  
+- Add new rules only with matching policy fields and tests.
+- Keep rule ordering and stable reason identifiers explicit.
+
+The retired multi-wallet sweep-event API is not part of the current codebase.
 
 ---
 
 ### 3.3 `risk_context.py`
 
-**Role:** Holds **state across multiple events**.
+**Role:** Holds the security-signal snapshot for one transaction decision.
 
-Tracks, for example:
+It carries, for example:
 
-- last timestamp per wallet  
-- global and per-wallet event history  
-- correlation information (e.g. sets of related wallets)  
-- previously flagged patterns / warnings  
+- Sentinel and ADN risk levels
+- the DQSN network score
+- wallet balance and transaction amount
+- address age, behaviour score and trusted-device state
+- optional metadata used by integrations
 
-This object is intentionally separate from the engine so that:
-
-- one context can be reused across many calls  
-- environments (exchange, wallet app) can decide scoping:
-  - per user
-  - per session
-  - per cluster of wallets
+The current class does not maintain sweep history, wallet graphs or
+destination-clustering state.
 
 Extension points:
 
-- add additional fields to track new styles of patterns  
-- extend context to store cross-chain or cross-service data  
+- add security signals only with deterministic handling and tests
+- preserve the existing defaults and serialisable v3 context surface
 
 ---
 
@@ -146,26 +152,26 @@ Extension points:
 
 **Role:** Encodes QWG’s **policy rules** and thresholds.
 
-Contains logic for:
+Defines `WalletPolicy`, including:
 
-- mapping raw metrics → QRS (0–100)  
-- deriving `LOW / ELEVATED / HIGH / CRITICAL` boundaries  
-- tagging patterns such as:
-  - `DORMANT_KEY_SWEEP`
-  - `MULTI_WALLET_DRAIN` (if present)
-- combining multiple signals into a final policy decision.
+- full-balance protection
+- normal-risk and high-risk transaction-ratio limits
+- the maximum permitted external risk level
+- warning and delay cooldowns
+- behaviour and trusted-device controls
+- the extra-authentication amount threshold.
 
-Typical usage (internally):
+Typical usage:
 
 ```python
-score, level, pattern = evaluate_policies(context, metrics)
+policy = WalletPolicy(max_tx_ratio_normal=0.25)
+engine = DecisionEngine(policy=policy)
 ```
 
 This file is the primary target for:
 
-- Adaptive Core adjustments  
-- human operator tuning  
-- adding new pattern definitions  
+- explicit wallet-level configuration
+- reviewed changes to the decision thresholds
 
 ---
 
@@ -173,25 +179,26 @@ This file is the primary target for:
 
 **Role:** Defines the structured **results** returned by QWG.
 
-Common fields:
+`Decision` provides `ALLOW`, `WARN`, `DELAY`, `BLOCK` and
+`REQUIRE_EXTRA_AUTH`. `DecisionResult` carries:
 
-- `qrs_score: int` — Quantum-Style Risk Score (0–100).  
-- `risk_level: str` — `LOW`, `ELEVATED`, `HIGH`, `CRITICAL`.  
-- `pattern: Optional[str]` — pattern tag if matched.  
-- `details: dict` — optional extra metrics or debug info.
+- `decision`
+- `reason` and optional stable `reason_id`
+- optional `cooldown_seconds` and `suggested_limit`
+- confirmation and second-factor flags.
 
 By keeping this in a single module:
 
-- logs and integrations are consistent  
-- tests can assert against a stable interface  
+- logs and integrations are consistent
+- tests can assert against a stable interface
 - developers can serialise decisions into JSON easily.
 
 Example:
 
 ```python
-result.qrs_score   # 92
-result.risk_level  # "CRITICAL"
-result.pattern     # "DORMANT_KEY_SWEEP"
+result.decision
+result.reason_id
+result.cooldown_seconds
 ```
 
 ---
@@ -202,40 +209,38 @@ result.pattern     # "DORMANT_KEY_SWEEP"
 
 Responsibilities:
 
-- serialising selected events + decisions into a format suitable for
-  Adaptive Core ingestion  
-- possibly receiving updated thresholds or policy parameters in future
-  versions  
-- defining event types that Adaptive Core expects (e.g. schema-like).
+- serialising selected decisions into a generic event or
+  ThreatPacket-shaped dictionary
+- accepting a caller-supplied sink without importing Adaptive Core
+- failing quietly so optional telemetry cannot break wallet decisions.
 
 In v2, this file formulates the “bridge contract” between:
 
-- local, per-instance QWG engines  
+- local, per-instance QWG engines
 - the network-wide learning / adaptation layer.
 
 Extension points:
 
-- plug in message queues or pub/sub for larger deployments  
-- encrypt or sign outgoing data if used over open networks  
+- plug in message queues or pub/sub for larger deployments
+- encrypt or sign outgoing data if used over open networks
 
 ---
 
 ## 4. Examples (`examples/`)
 
-These scripts are **self-contained demonstrations** of QWG behaviour.
-They are meant for:
+The historical snapshot included scripts intended for:
 
-- human understanding  
-- initial integration testing  
-- regression scenarios  
+- human understanding
+- initial integration testing
+- regression scenarios
 
 ### 4.1 `basic_usage.py`
 
 Shows:
 
-- how to initialise `RiskContext` and `QWGEngine`  
-- how to feed a simple event  
-- how to print `qrs_score`, `risk_level`, `pattern`.
+- how to initialise `RiskContext` and `DecisionEngine`
+- how to evaluate a transaction-scoped context
+- how to print the returned decision and reason.
 
 Ideal starting point for new developers.
 
@@ -245,10 +250,8 @@ Ideal starting point for new developers.
 
 Demonstrates:
 
-- how session / device information could be attached to events  
-- how RiskContext can be extended to track extra context (e.g. device
-  fingerprints, app IDs)  
-- how this influences QRS and pattern tagging.
+- how behaviour and trusted-device signals can be supplied in `RiskContext`
+- how those inputs affect an ordered policy decision.
 
 This is a template for integration with Guardian Wallet v2 or
 device-aware infrastructure.
@@ -257,13 +260,13 @@ device-aware infrastructure.
 
 ### 4.3 `high_risk_scenario.py`
 
-Shows a synthetic scenario where behaviour escalates quickly to
-`HIGH` or `CRITICAL`.
+Shows synthetic high-risk transaction context and the resulting policy
+decision.
 
 Useful for:
 
-- validating end-to-end wiring  
-- showing integrators what “bad” flows look like in logs.  
+- validating end-to-end wiring
+- showing integrators what “bad” flows look like in logs.
 
 ---
 
@@ -271,71 +274,53 @@ Useful for:
 
 Demonstrates how:
 
-- QWG decisions can be passed through `adaptive_bridge.py`  
-- payloads might be sent to Adaptive Core  
-- identifiers and risk labels can be carried across.
+- QWG decisions can be passed through `adaptive_bridge.py`
+- payloads might be sent to Adaptive Core
+- identifiers and decision evidence can be carried across.
 
-This is a concrete reference for any system that wants to actually wire
-QWG + Adaptive Core.
+The example is illustrative. Any real integration must validate the current
+bridge contract and keep Adaptive Core failures from changing wallet policy.
 
 ---
 
-### 4.5 `dormant_key_sweep_scenario.py`
+### 4.5 Retired QWG-SIM-001 artifact
 
-Implements **QWG-SIM-001**, the **Dormant Key Sweep** scenario described
-in `QWG-QuantumAttackScenario-1.md`.
-
-Key points:
-
-- multiple wallets (`A`, `B`, `C`)  
-- many UTXOs  
-- aggregation to `X1`, `X2`  
-- timeline in minutes from a start time  
-- expected QRS escalation into `CRITICAL`.
-
-Developers can run:
-
-```bash
-python examples/dormant_key_sweep_scenario.py
-```
-
-and observe:
-
-- when the pattern is detected  
-- how `qrs_score` moves with each event  
-- how logs would look in a real system.
+The earlier dormant-key-sweep executable was based on a proposed
+multi-event analytics API that was never implemented. It is formally retired
+and is not part of the current examples. `QWG-QuantumAttackScenario-1.md`
+remains only as a conceptual, historical threat-analysis document; it is not
+an executable demonstration or evidence of detection behaviour.
 
 ---
 
 ## 5. Tests (`tests/`)
 
-The tests guarantee that the core behaviour of QWG remains stable as
-code evolves.
+The selected tests recorded here exercise v2-oriented behaviour. Only the
+actual test suite for a specific release can establish that release's tested
+surface.
 
 ### 5.1 `test_engine.py`
 
-- Validates engine wiring and main execution paths.  
-- Ensures basic QRS calculation works end-to-end.  
+- Validates engine wiring and main execution paths.
+- Exercises ordered `DecisionEngine` rules and returned decisions.
 - Guards against breaking changes in engine signatures.
 
 ---
 
 ### 5.2 `test_policies.py`
 
-- Checks that policy boundaries for `LOW`, `ELEVATED`, `HIGH`,
-  `CRITICAL` are honoured.  
-- Confirms that pattern tags are assigned correctly based on synthetic
-  inputs.  
+- Checks wallet-policy defaults and configured thresholds.
+- Confirms the policy object exposes the values used by the engine.
 
-When updating `policies.py`, this file must pass green.
+Any policy change requires the relevant tests for that release to pass.
 
 ---
 
 ### 5.3 `test_decisions.py`
 
-- Verifies behaviour of the decision classes / objects.  
+- Verifies behaviour of the decision classes / objects.
 - Ensures defaults, equality semantics (if any), and fields remain
-  consistent.  
+  consistent.
 
 This is important so external integrators can rely on a stable decision
 API.
@@ -344,23 +329,18 @@ API.
 
 ### 5.4 `test_adaptive_bridge.py`
 
-- Validates the format and handling in `adaptive_bridge.py`.  
-- Ensures outgoing payloads contain the required fields.  
+- Validates the format and handling in `adaptive_bridge.py`.
+- Ensures outgoing payloads contain the required fields.
 - Prevents accidental changes to the Adaptive Core contract.
 
 ---
 
-### 5.5 `test_dormant_key_sweep.py`
+### 5.5 Retired QWG-SIM-001 test
 
-- Implements the test for QWG-SIM-001 scenario.  
-- Feeds a sequence of events equivalent to the example scenario.  
-- Asserts that:
-  - QRS reaches a high range (e.g. ≥90), or  
-  - risk level is `CRITICAL`,  
-  - pattern is correctly tagged.
-
-This test is a key indicator that the dormant key sweep detection logic
-has not degraded.
+The former scenario test depended on the same nonexistent sweep-event API and
+did not execute a current runtime path. It is formally retired and must not be
+cited as coverage or proof of dormant-key-sweep detection. Any future
+implementation requires a separately reviewed runtime contract and real tests.
 
 ---
 
@@ -368,8 +348,8 @@ has not degraded.
 
 The CI file:
 
-- installs dependencies  
-- runs the test suite via `pytest`  
+- installs dependencies
+- runs the test suite via `pytest`
 - can be extended later to run linting / type-checking.
 
 Any pull request or commit should show **green CI** before being
@@ -383,50 +363,47 @@ considered for merge or testnet experimentation.
 
 High-level narrative:
 
-- motivation  
-- threat model  
-- role in the 5-layer shield  
-- relationship to PQC  
-- roadmap and limitations  
+- motivation
+- threat model
+- role in the 5-layer shield
+- relationship to PQC
+- roadmap and limitations
 
 ### 7.2 `QWG-TechSpec-v2.md`
 
-Technical details:
-
-- QRS computation  
-- core APIs  
-- data models  
-- pattern definitions  
-- integration flows  
+Historical technical details, corrected to distinguish the implemented
+transaction-decision API from the retired behavioural-analytics proposal.
 
 ### 7.3 `QWG-DeveloperGuide-v2.md`
 
 Developer-focused:
 
-- installation  
-- integration patterns  
-- example usage  
-- best practices  
-- deployment recommendations  
+- installation
+- integration patterns
+- example usage
+- best practices
+- deployment recommendations
 
 ### 7.4 `QWG-Adaptive-Core-Integration-v2.md`
 
 Describes how:
 
-- QWG produces data for Adaptive Core  
-- events and decisions are serialised and transported  
+- QWG produces data for Adaptive Core
+- events and decisions are serialised and transported
 - feedback from Adaptive Core might tune policies.
 
 ### 7.5 `QWG-QuantumAttackScenario-1.md`
 
-Canonical specification for the **Dormant Key Sweep** scenario:
+Historical threat-analysis description for the retired **Dormant Key Sweep**
+design scenario:
 
-- timeline  
-- wallets and destinations  
-- value distribution  
-- rationale for its structure  
+- timeline
+- wallets and destinations
+- value distribution
+- rationale for its structure
 
-This file is the reference behind the example + test.
+This file is documentation only. It does not describe an implemented runtime,
+and no maintained example or test is derived from it.
 
 ---
 
@@ -434,38 +411,34 @@ This file is the reference behind the example + test.
 
 Developers who want to extend QWG can focus on:
 
-- `policies.py` for new pattern definitions  
-- `risk_context.py` for additional state tracking  
-- `adaptive_bridge.py` for richer integration  
-- new examples and tests for emerging scenarios  
+- `policies.py` for reviewed wallet-policy changes
+- `risk_context.py` for additional transaction-scoped signals
+- `adaptive_bridge.py` for richer integration
+- new examples and tests for emerging scenarios
 
 Any changes should:
 
-- keep `decisions.py` stable as a public contract  
-- maintain a clear, explainable path from raw events to QRS  
+- keep `decisions.py` stable as a public contract
+- maintain a clear, explainable path from context inputs to decisions
 - preserve test coverage and CI green status.
 
 ---
 
 ## 9. Conclusion
 
-This blueprint shows how each part of QWG v2 fits into the overall
-architecture.
+This blueprint preserves a partial historical view of QWG v2. It must not be
+used as a substitute for inspecting the source and tests of the release under
+review.
 
 For deeper explanation of concepts and design choices, see:
 
-- `QWG_Whitepaper_v2.md`  
-- `QWG-TechSpec-v2.md`  
-- `QWG-DeveloperGuide-v2.md`  
-- `QWG-Adaptive-Core-Integration-v2.md`  
+- `QWG_Whitepaper_v2.md`
+- `QWG-TechSpec-v2.md`
+- `QWG-DeveloperGuide-v2.md`
+- `QWG-Adaptive-Core-Integration-v2.md`
 
-For practical understanding, run:
+Before running an example or test command, confirm the path and prerequisites
+against the release under review.
 
-```bash
-python examples/dormant_key_sweep_scenario.py
-pytest -q
-```
+Author and project contact: **DarekDGB**.
 
-For questions or collaboration:
-
-**@Darek_DGB** on X.
