@@ -21,6 +21,7 @@ The goal is to prove QWG can produce and verify v4 component evidence while keep
 | verify real ML-DSA signature entry through backend adapter | verification returns true |
 | FN-DSA absent with required signatures valid | accepted under V4.8H policy |
 | FN-DSA present and valid with required signatures valid | accepted and recorded as optional evidence |
+| producer receives reversed or interleaved supported entries | emits `classical-ed25519`, `ml-dsa`, then optional `fn-dsa` without mutating or aliasing caller input |
 | FN-DSA signed-message KAT | `fn-dsa`, `fips206-draft-falcon1024-v1`, and component domain bytes match fixture |
 | lazy OQS fake backend exposes version | backend metadata includes locked mechanism |
 | gated live liboqs ML-DSA proof | skipped by default; passes only in a dedicated `SHIELD_V4_REAL_OQS=1` job with `skipped == 0` |
@@ -43,6 +44,8 @@ The goal is to prove QWG can produce and verify v4 component evidence while keep
 | FN-DSA wrong signed payload hash | fail closed |
 | FN-DSA unsupported `standard_profile` | fail closed |
 | FN-DSA `standard_profile` flipped after signing | fail closed |
+| reversed required signature order | fail closed before trust lookup or cryptographic verification |
+| interleaved or optional-first three-entry order | fail closed before trust lookup or cryptographic verification |
 | duplicate algorithm entry | fail closed |
 | unsupported algorithm | fail closed |
 | wrong domain tag | fail closed |
