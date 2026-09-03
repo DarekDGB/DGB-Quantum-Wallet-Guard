@@ -1,32 +1,25 @@
 # QWG Shield v4 Component Verdict Contract
 
+Status: controlled `4.0.0` release candidate; not released or tagged
 Author attribution: DarekDGB
 
-## Status
+## Scope
 
-This document defines the QWG Shield v4 component-verdict contract.
+This document defines the QWG Shield v4 component-verdict contract. It is
+parallel to the frozen v3 compatibility surface. The distribution-version bump
+does not change any protocol or schema identity.
 
-This is a parallel v4 contract. It does not modify or replace the audited v3.2 QWG deterministic contract.
+## Authority boundary
 
-V4.8E added a real ML-DSA backend adapter path for QWG component evidence. V4.8H-B adds the QWG pilot FN-DSA optional-evidence contract with authenticated `standard_profile` binding. The deterministic TEST-ONLY path remains separate and is retained only for contract and CI locking.
+QWG produces wallet-safety component evidence only. It does not sign or
+broadcast DigiByte transactions, hold private keys, change consensus, approve
+execution, produce the final Shield receipt, bypass the Shield Orchestrator, or
+override AdamantineOS.
 
-## Authority Boundary
+The Shield Orchestrator verifies QWG evidence. AdamantineOS remains the final
+fail-closed policy and execution boundary.
 
-QWG Shield v4 does not sign DigiByte transactions.
-
-QWG Shield v4 does not broadcast transactions.
-
-QWG Shield v4 does not change DigiByte consensus.
-
-QWG Shield v4 does not approve AdamantineOS execution.
-
-QWG Shield v4 produces cryptographically verifiable component decision evidence only.
-
-The Shield Orchestrator verifies component evidence before producing a Shield receipt.
-
-AdamantineOS remains the final execution boundary.
-
-## Contract Identity
+## Frozen identities
 
 ```text
 component_id: qwg
@@ -35,11 +28,13 @@ contract_version: 4
 schema_version: shield.verdict.v2
 canonicalization_profile: shield-v4-canon.v1
 signature_policy: policy.v1
+signature_bundle_schema: shield.signature_bundle.v1
+key_registry_schema: shield.key_registry.v1
 ```
 
-## Signed Payload Fields
+## Signed payload
 
-The unsigned payload covered by `signed_payload_hash` contains:
+The domain-separated canonical QWG payload contains:
 
 ```text
 component_id
@@ -61,70 +56,35 @@ signature_policy
 key_registry_version
 ```
 
-The `signature_bundle` and `signed_payload_hash` fields are not part of the payload they sign.
-
-## Canonicalization
-
-QWG v4 uses the same Shield v4 canonicalization profile locked in the Orchestrator:
-
-```text
-shield-v4-canon.v1
-```
-
-The signed-payload hash uses this domain tag:
+The bundle and `signed_payload_hash` are outside the payload they sign. The
+component domain is:
 
 ```text
 DGB-SHIELD-V4-COMPONENT-VERDICT:shield.verdict.v2:policy.v1
 ```
 
-A component-verdict signature must never verify as an Orchestrator receipt signature.
+A QWG component signature cannot verify as an Orchestrator receipt signature
+or transaction signature.
 
-## Signature Policy
+## Signature policy
 
-`policy.v1` requires strict AND semantics:
-
-```text
-classical-ed25519
-ml-dsa
-```
-
-Optional evidence path:
-
-```text
-fn-dsa
-```
-
-ML-DSA means ML-DSA, formerly CRYSTALS-Dilithium.
-
-FN-DSA means FN-DSA, based on Falcon.
-
-FN-DSA is not ML-DSA and cannot satisfy the ML-DSA requirement.
-
-FN-DSA is optional additional evidence in V4.8H-B. FN-DSA absence is allowed while the required `classical-ed25519` and `ml-dsa` paths remain valid. FN-DSA present but invalid, malformed, unsupported, unresolvable, duplicated, wrong-role, wrong-hash, wrong-domain, or profile-mismatched is fatal.
-
-### Canonical Signature-Bundle Order
-
-QWG producers must emit signature entries in this exact `policy.v1` order:
+`policy.v1` requires strict AND verification in canonical order:
 
 ```text
 classical-ed25519
 ml-dsa
-fn-dsa, when present
+fn-dsa                    optional and last only
 ```
 
-The bundle builder canonicalizes supported input entries into that sequence
-without mutating or aliasing the caller's list. A verifier must not repair,
-sort, or otherwise normalize a received bundle. Reversed or interleaved
-algorithm sequences are malformed and must fail before trust-registry lookup or
+A producer canonicalizes supported caller entries without mutation or aliasing.
+A verifier never repairs or sorts a received bundle. Reversed, interleaved,
+optional-first, duplicated, or unknown entries fail before trust lookup or
 cryptographic verification.
 
-This ordering rule does not change strict required-signature AND semantics.
-FN-DSA remains optional-last evidence only. It cannot replace or rescue either
-required algorithm.
+Optional FN-DSA may be absent. If present, it must verify and cannot replace or
+rescue either required path.
 
-## Standard Profiles
-
-Every signature entry carries an authenticated `standard_profile` field. QWG V4.8H-B locks these policy.v1 profiles:
+## Profiles
 
 ```text
 classical-ed25519 -> rfc8032-ed25519-v1
@@ -132,111 +92,37 @@ ml-dsa            -> fips204-ml-dsa-65-v1
 fn-dsa            -> fips206-draft-falcon1024-v1
 ```
 
-The FN-DSA profile is draft Falcon-1024 evidence only. Falcon-1024 is documented as NIST security level 5. ML-DSA-65 remains the required level-3 PQC path. This package makes no final FIPS 206 production claim.
+The profile is authenticated inside the real-signature input. Falcon-1024 is
+optional draft evidence, not final FIPS 206 proof.
 
-The `standard_profile` value is not display-only metadata. It is bound into the real-signature message bytes and into deterministic TEST-ONLY signature material so a profile flip after signing fails closed.
+## Trust profile and key separation
 
-## Real Backend Path
+Only role `shield_component_qwg` is valid for this component. Trust entries
+bind role, algorithm, profile, key ID, key version, status, validity window,
+and public key. Unknown, revoked, expired, not-yet-valid, wrong-role,
+wrong-algorithm, or mismatched entries fail closed.
 
-QWG V4.8E introduced an optional real backend adapter for the required `ml-dsa` path:
+The verifier controls trust. Caller-supplied metadata cannot grant authority.
 
-```text
-src/qwg/v4/real_crypto_backend.py
-src/qwg/v4/oqs_mldsa_backend.py
-```
+## Real backend
 
-The OQS adapter maps Shield algorithm `ml-dsa` to OQS mechanism `ML-DSA-65`.
+The backend-neutral adapter accepts reviewed implementations without adding a
+hard provider dependency. Optional liboqs adapters map `ml-dsa` to
+`ML-DSA-65` and `fn-dsa` to `Falcon-1024`.
 
-The adapter:
+Real public keys and signatures use strict unpadded
+`b64u:<base64url-bytes>` encoding. TEST-ONLY IDs, keys, or private references
+are rejected at the real-backend boundary. Missing providers, disabled or
+wrong mechanisms, malformed material, native exceptions, and non-boolean
+verifier results fail closed. There is no fallback to deterministic test
+signatures.
 
-- does not vendor liboqs;
-- does not add a hard `pyproject.toml` dependency;
-- lazily imports `oqs` only when used;
-- rejects missing or disabled OQS mechanisms;
-- rejects wrong OQS mechanism selection;
-- rejects malformed `b64u:` public keys or signatures;
-- rejects deterministic TEST-ONLY key material at the real backend boundary;
-- wraps native OQS/liboqs exceptions inside the QWG real-backend fail-closed error hierarchy;
-- provides no fallback from real backend mode to deterministic TEST-ONLY signatures.
+## Required rejection behavior
 
-V4.8H-B extends the neutral real-crypto adapter entry shape to include `standard_profile` for all algorithms, including optional `fn-dsa`. V4.8H-E then adds the gated live Falcon-1024 backend path against the same authenticated profile semantics.
+Reject missing required signatures, noncanonical order, duplicates, unsupported
+algorithms or profiles, required-path rescue, role or key mismatch, revoked or
+out-of-window keys, context or payload-hash mutation, freshness or request
+mutation, forbidden authority metadata, malformed canonical data, invalid
+binary material, and backend failure.
 
-Real binary signatures and public keys use this encoding shape:
-
-```text
-b64u:<unpadded-base64url-bytes>
-```
-
-This step does not add a production `classical-ed25519` backend. A production real-backend deployment must still satisfy both required policy paths.
-
-## Freshness and Anti-Replay
-
-Every signed QWG v4 verdict carries:
-
-```text
-request_id
-freshness_nonce
-not_before
-not_after
-```
-
-These fields are inside the signed payload.
-
-A verifier must reject stale, malformed, duplicate, or replayed verdicts according to the Orchestrator receipt policy and replay-state rules.
-
-## Fail-Closed Rules
-
-A verifier must reject:
-
-- missing signature bundle
-- missing required algorithm
-- duplicate algorithm entry
-- unknown algorithm
-- unsupported `standard_profile`
-- `standard_profile` flipped after signing
-- present-invalid FN-DSA optional evidence
-- present-but-unresolvable FN-DSA optional evidence
-- FN-DSA attempting to replace ML-DSA or classical evidence
-- reversed or interleaved signature algorithms
-- wrong key id
-- wrong key role
-- revoked key
-- invalid key window
-- changed context hash
-- changed request id
-- changed decision
-- changed reason ids
-- changed evidence hash
-- changed metadata
-- forbidden authority metadata
-- malformed canonical payload
-- `null` or float values in signed fields
-- missing OQS backend when real ML-DSA mode is selected
-- disabled or wrong OQS ML-DSA mechanism
-- malformed `b64u:` real binary material
-- structurally valid but backend-invalid OQS key or signature material
-- native OQS/liboqs signing, verification, mechanism-discovery, or version-discovery exception
-- deterministic TEST-ONLY material at the real backend boundary
-
-## V4.8H-E Live Falcon-1024 Backend Extension
-
-V4.8H-E adds a backend adapter for optional FN-DSA evidence using liboqs `Falcon-1024` under the locked Shield profile `fips206-draft-falcon1024-v1`.
-
-The extension keeps the same component-verdict contract:
-
-- `classical-ed25519` and `ml-dsa` remain required under `policy.v1`;
-- FN-DSA remains optional evidence;
-- present-invalid FN-DSA remains fatal;
-- a valid FN-DSA signature never rescues a failed required signature;
-- the `standard_profile` remains authenticated inside the real-signature input;
-- this component still does not sign transactions, broadcast, change DigiByte consensus, or grant AdamantineOS final authority.
-
-## Test-Only Cryptography Warning
-
-The original QWG v4 pilot uses deterministic TEST-ONLY signatures for contract and CI locking.
-
-These test signatures are not production private keys and are not production ML-DSA or FN-DSA implementations.
-
-Production PQC adapters must satisfy the same signed payload, domain tag, key role, key version, freshness, policy, `standard_profile`, and bundle-binding rules.
-
-The V4.8E OQS adapter is a real-backend path for QWG component evidence only. V4.8H-B adds optional FN-DSA policy and profile-binding proof, and V4.8H-E adds a gated Falcon-1024 backend proof path. None of these steps creates transaction signing, broadcast, consensus, or final-execution authority.
+Tests and `docs/qwg/v4/TEST_MATRIX.md` define the enforceable proof boundary.
