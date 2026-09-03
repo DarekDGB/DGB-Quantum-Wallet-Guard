@@ -1,251 +1,156 @@
-# 🛡️ DGB Quantum Wallet Guard v3.2.0
+# DGB Quantum Wallet Guard 4.0.0 Candidate
 
 ![CI](https://github.com/DarekDGB/DGB-Quantum-Wallet-Guard/actions/workflows/ci.yml/badge.svg)
 ![Coverage 100%](https://img.shields.io/badge/coverage-100%25-brightgreen)
-![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
-![Status](https://img.shields.io/badge/status-ORCHESTRATOR--BOUNDARY--LOCKED-critical)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Status](https://img.shields.io/badge/status-CONTROLLED--PRE--RELEASE-orange)
 
-**Deterministic Wallet Runtime Guard • Transaction / Key Safety Evidence**  
-**Architecture & Implementation by @DarekDGB — MIT Licensed**
+Author attribution: DarekDGB
 
----
+Distribution version: `4.0.0`
+Candidate tag: `v4.0.0`
+Release status: controlled pre-release; not released and not tagged
 
-## Purpose
+DGB Quantum Wallet Guard (QWG) is the deterministic wallet-runtime and
+transaction-safety evidence component of the DigiByte Quantum Shield. It
+evaluates bounded wallet context and emits role-bound component verdict
+evidence for the Shield Orchestrator.
 
-**DGB Quantum Wallet Guard v3.2.0** is the deterministic wallet-runtime safety layer of the **DigiByte Quantum Shield**.
+## Authority boundary
 
-QWG evaluates wallet runtime context, transaction safety context, and quantum/post-quantum risk indicators before wallet execution continues.
+QWG evidence is not execution authority. QWG does not:
 
-QWG may produce evidence for:
+- sign or broadcast DigiByte transactions;
+- hold, derive, access, or control wallet private keys;
+- change DigiByte consensus;
+- approve wallet execution or spending;
+- produce the final Shield receipt;
+- bypass the Shield Orchestrator; or
+- override AdamantineOS.
 
-- unsafe transaction context
-- weak or mismatched wallet runtime posture
-- quantum-risk escalation
-- unsafe signing-path conditions
-- defensive wallet lockdown conditions
-- Shield Orchestrator aggregation
+The Shield Orchestrator verifies QWG evidence and produces the only Shield
+receipt AdamantineOS may consume. AdamantineOS remains the final fail-closed
+policy and execution boundary. Shield `ALLOW` permits only continuation to
+those independent checks.
 
-QWG does **not**:
+## Shield v4 component contract
 
-- sign transactions
-- broadcast transactions
-- hold, derive, or access private keys
-- modify DigiByte consensus
-- approve AdamantineOS execution directly
-- override the Shield Orchestrator
-- act as final execution authority
-
-QWG is a **wallet safety evidence component**.
-
----
-
-## Position in the DigiByte Quantum Shield
+QWG uses these frozen identities:
 
 ```text
-┌───────────────────────────────────────────────┐
-│              AdamantineOS                     │
-│   Consumes only Shield Orchestrator receipt   │
-└───────────────────────────────────────────────┘
-                       ▲
-                       │ deterministic receipt only
-┌───────────────────────────────────────────────┐
-│          Shield Orchestrator v3               │
-│   Final Shield aggregation + receipt boundary │
-└───────────────────────────────────────────────┘
-                       ▲
-                       │ component verdict evidence
-┌───────────────────────────────────────────────┐
-│        Quantum Wallet Guard v3                │
-│   Wallet runtime / transaction safety gate    │
-└───────────────────────────────────────────────┘
-                       ▲
-                       │ wallet + tx + risk context
-┌───────────────────────────────────────────────┐
-│        Wallet Runtime / Signing Flow          │
-│   Local context only — no key custody in QWG  │
-└───────────────────────────────────────────────┘
+component_id: qwg
+component_role: shield_component_qwg
+contract_version: 4
+schema_version: shield.verdict.v2
+canonicalization_profile: shield-v4-canon.v1
+signature_policy: policy.v1
+signature_bundle_schema: shield.signature_bundle.v1
+key_registry_schema: shield.key_registry.v1
 ```
 
-QWG evaluates wallet safety evidence.
+The distribution-version alignment to `4.0.0` does not change these protocol
+or schema identities and does not alter the historical v3 compatibility
+surface.
 
-The Shield Orchestrator is the final Shield receipt boundary for AdamantineOS handoff.
+## Signature policy and canonical order
 
----
-
-## Core Mission
-
-### Deterministic Wallet Safety Evaluation
-
-QWG converts validated wallet runtime and transaction safety context into deterministic verdict evidence.
-
-Same valid input must always produce the same output.
-
-### Fail-Closed by Default
-
-QWG must reject unsafe input conditions, including:
-
-- malformed wallet context
-- malformed transaction context
-- unsupported contract versions
-- unknown strict fields
-- duplicate or conflicting authority claims
-- unsafe numeric values
-- oversized payloads
-- unserialisable data
-- ambiguity affecting authority or auditability
-
-### Evidence Only
-
-QWG output is not final execution authority.
-
-QWG verdict data must be treated as component evidence for Shield orchestration.
-
-Raw QWG output must not be consumed by AdamantineOS as final signing, execution, or approval authority.
-
----
-
-## v3.2.0 Manifest / Verdict Lock
-
-QWG v3.2.0 includes the Shield manifest / registry / canonical verdict lock required before AdamantineOS integration.
-
-The v3.2.0 lock enforces:
-
-- component identity discipline
-- contract version discipline
-- stable reason ID registration
-- stable evidence-family registration
-- deterministic canonical verdict data
-- fail-closed rejection of malformed verdict inputs
-- Orchestrator-first handoff assumptions
-
-QWG remains evidence-only.
-
-It cannot:
-
-- sign
-- broadcast
-- hold keys
-- expand authority
-- override the Shield Orchestrator
-- approve AdamantineOS execution directly
-
-See:
-
-- `docs/qwg/v3/MANIFEST.md`
-- `docs/qwg/v3/REASON_IDS.md`
-- `docs/qwg/v3/EVIDENCE_FAMILIES.md`
-- `docs/qwg/v3/TEST_MATRIX.md`
-- `docs/qwg/v3/PROOF_PACK.md`
-
----
-
-## Repository Layout
+`policy.v1` requires strict AND verification of the classical and ML-DSA
+paths. Optional FN-DSA evidence may be absent. When present, it must verify and
+must be last:
 
 ```text
-DGB-Quantum-Wallet-Guard/
-├─ README.md
-├─ LICENSE
-├─ CHANGELOG.md
-├─ SECURITY.md
-├─ docs/
-│  └─ qwg/
-│     └─ v3/
-│        ├─ EVIDENCE_FAMILIES.md
-│        ├─ MANIFEST.md
-│        ├─ PROOF_PACK.md
-│        ├─ QWG_V3.md
-│        ├─ REASON_IDS.md
-│        └─ TEST_MATRIX.md
-├─ tests/
-│  └─ test_v3_2_manifest_verdict_lock.py
-└─ src/
-   └─ qwg/
-      └─ v3/
-         ├─ context_hash.py
-         ├─ verdict.py
-         └─ v3_2_lock.py
+classical-ed25519
+ml-dsa
+fn-dsa                    optional and last only
 ```
 
----
+Profiles are fixed as follows:
 
-## Tests & Security Guarantees
+```text
+classical-ed25519 -> rfc8032-ed25519-v1
+ml-dsa            -> fips204-ml-dsa-65-v1
+fn-dsa            -> fips206-draft-falcon1024-v1
+```
 
-Security and regression tests enforce:
+Optional FN-DSA cannot replace or rescue either required path. Present but
+invalid optional evidence is fatal. The Falcon-1024 profile is draft evidence,
+not final FIPS 206 proof.
 
-- deterministic wallet-safety behavior
-- fail-closed behavior
-- strict manifest discipline
-- stable reason IDs
-- stable evidence families
-- canonical verdict lock behavior
-- no hidden authority
-- no silent fallback
-- no key custody
-- no Orchestrator bypass assumption
+## Role and key separation
 
-Tests define truth.
+The trust profile accepts only `shield_component_qwg` keys for QWG component
+evidence. Algorithm, standard profile, role, key ID, key version, status, and
+validity window are verifier-controlled and bound to the signature input.
+Wrong-role, revoked, expired, unknown, downgraded, or mismatched evidence fails
+closed.
 
-No release is locked unless CI proves the contract surface.
+QWG component signatures cannot be reused as Orchestrator receipt signatures
+or transaction signatures because their domains, roles, and payloads differ.
 
----
+## Real-crypto proof boundary
 
-## v3.2.0 Status
+The backend-neutral adapter supports reviewed provider integrations. The
+optional liboqs adapters map:
 
-QWG is aligned with the Shield v3.2.0 integration-boundary track:
+```text
+ml-dsa -> ML-DSA-65
+fn-dsa -> Falcon-1024
+```
 
-- package metadata set to `3.2.0`
-- manifest / reason ID / evidence-family docs are present
-- v3.2.0 verdict lock tests are present
-- deterministic contract behavior is preserved
-- no consensus authority is added
-- no signing, broadcasting, key custody, or hidden execution authority is added
-- AdamantineOS must consume Shield through the Orchestrator receipt only
+Default CI proves deterministic contracts, test-double behavior, KATs,
+negative paths, and 100 percent statement coverage. It does not prove native
+liboqs execution. The dedicated `Shield v4 Real OQS ML-DSA and Falcon-1024
+Proof` workflow must execute exactly the two guarded native nodes with zero
+skips, failures, or errors before a live-liboqs claim is made.
 
-Do **not** tag v3.2.0 until the final roadmap checklist, fresh ZIP audit, CI proof, and Red Team report are complete.
+Native tests use test keys. They do not prove production key custody, HSM
+assurance, provider hardening, transaction signing, or final FIPS 206
+conformance.
 
----
+## V4 documentation
 
-## Shield v3 Invariants
+- Contract: `docs/qwg/v4/CONTRACT.md`
+- Manifest and trust profile: `docs/qwg/v4/MANIFEST.md`
+- Real-crypto backend: `docs/qwg/v4/REAL_CRYPTO_BACKEND.md`
+- Test matrix: `docs/qwg/v4/TEST_MATRIX.md`
+- Proof pack: `docs/qwg/v4/PROOF_PACK.md`
+- Release status: `docs/qwg/v4/RELEASE_STATUS_v4.0.0.md`
 
-QWG follows the Shield v3 baseline invariants:
+Tests and normative contract documents define truth. A public claim must not
+exceed the evidence recorded in the proof pack and release status.
 
-- **Deny-by-default** — anything not explicitly allowed is rejected.
-- **Fail-closed** — invalid, ambiguous, partial, or unsafe input is rejected.
-- **Deterministic execution** — same valid input must produce the same output.
-- **No silent fallback** — failures must surface as explicit reasoned rejections.
-- **No key custody** — QWG never holds, derives, signs with, or accesses private keys.
-- **Evidence-only output** — QWG evidence does not approve execution.
-- **Orchestrator-first handoff** — AdamantineOS receives Shield state only through the deterministic Orchestrator receipt.
+## V3 compatibility and history
 
-Any violation of these invariants is a security defect.
+The `v3.2.0` release and its documents are historical evidence. The v3
+contract version `3`, schema `shield.verdict.v1`, and compatibility constant
+`PACKAGE_VERSION = "3.2.0"` remain unchanged. The top-level distribution bump
+does not reinterpret or rewrite v3 artifacts.
 
----
+New controlled integrations should use the v4 evidence surface. Historical v3
+evidence must not be accepted where trusted policy requires v4.
 
-## Documentation
+## Development
 
-- Manifest: `docs/qwg/v3/MANIFEST.md`
-- Reason IDs: `docs/qwg/v3/REASON_IDS.md`
-- Evidence Families: `docs/qwg/v3/EVIDENCE_FAMILIES.md`
-- Test Matrix: `docs/qwg/v3/TEST_MATRIX.md`
-- Proof Pack: `docs/qwg/v3/PROOF_PACK.md`
+Install test dependencies and run the committed standard gate:
 
----
+```text
+python -m pip install -e ".[test]"
+pytest --cov=qwg --cov-report=term-missing --cov-fail-under=100 -q
+```
 
-## Contribution Policy
+The two native-OQS tests are intentionally skipped in an ordinary local run.
+The dedicated workflow enables them and rejects any skip.
 
-Rules:
+## Release governance
 
-- No consensus-touching behavior.
-- No signing or broadcasting behavior.
-- No private-key custody behavior.
-- No AdamantineOS direct execution approval.
-- Deterministic wallet-safety evidence only.
-- Tests required for contract changes.
-- No bypass of the Shield Orchestrator receipt boundary.
-
----
+`4.0.0` is the aligned distribution candidate and `v4.0.0` is only the
+candidate tag name. No release decision has been authorized. Do not create or
+move `v4.0.0` until all controlled V4.10 gates are complete and DarekDGB
+explicitly authorizes the release action.
 
 ## License
 
-MIT License  
-© 2025 **DarekDGB**
+MIT License. See `LICENSE` and `THIRD_PARTY_NOTICES.md`.
+
+Copyright 2025 DarekDGB
