@@ -56,6 +56,7 @@ def _is_generated(path: Path, root: Path) -> bool:
     relative = path.relative_to(root)
     return (
         path.name in _GENERATED_FILE_NAMES
+        or path.name.startswith(".coverage.")
         or path.suffix in {".pyc", ".pyo"}
         or any(part in _GENERATED_DIRECTORY_NAMES for part in relative.parts)
         or any(part.endswith(".egg-info") for part in relative.parts)
