@@ -1,9 +1,9 @@
 # QWG Shield v4 Proof Pack
 
-Status: V4.10-E1 controlled `4.0.0` release candidate; not released or tagged
+Status: V4.10-I2 native-evidence candidate for controlled `4.0.0`; not released or tagged
 Author attribution: DarekDGB
 
-## Authenticated source
+## Historical E1 authenticated source
 
 ```text
 repository: DGB-Quantum-Wallet-Guard
@@ -65,7 +65,7 @@ SHA-256: b799b963cb46ccf579a0380cffeecd81f99fa616267e6d69fec4f2bf06e9f6ef
 
 These bytes remain unchanged by V4.10-E1.
 
-## Test evidence
+## Historical E1 test evidence
 
 Authenticated pre-E1 baseline:
 
@@ -86,15 +86,55 @@ statement coverage: 100 percent
 V4.10-E1 release-pack lock: 10 passed
 ```
 
-The required post-commit proof is:
+The E1 post-commit proof required:
 
 1. standard Python 3.11 CI green with 100 percent QWG statement coverage;
 2. dedicated real-OQS workflow green;
 3. guarded JUnit tests=2, skipped=0, failures=0, errors=0; and
 4. fresh post-commit ZIP exact-scope verification.
 
-The screenshot or workflow page is evidence of remote status. No persisted
-JUnit archive SHA-256 is claimed.
+That historical package did not retain a native JUnit archive. Its counts
+above remain historical evidence, not the I2 candidate result.
+
+## V4.10-I2 authenticated source and evidence controls
+
+```text
+repository: DarekDGB/DGB-Quantum-Wallet-Guard
+source commit: ad728421c5a8866a0c914bec927009fab39c04bb
+source Git tree: c87be84a4d848f7958914a633601390fdb7cff3b
+source ZIP: DGB-Quantum-Wallet-Guard-main(20260903-064203).zip
+source ZIP SHA-256: 4a10440a6a1d5c0577481c158bcb8162a0c3d1b4bd3bf2ba6054ed59719fa3b0
+source inventory: 84 files
+```
+
+The source ZIP still matches current main at the I2 preparation checkpoint.
+I2 changes one native workflow, its JUnit guard and tests, and three evidence
+documents; one workflow regression lock is new. All QWG runtime, metadata,
+protocol, fixture, native proof-node, and standard-CI bytes remain unchanged.
+
+The native workflow uses the immutable source commits recorded in
+`REAL_CRYPTO_BACKEND.md`, installs the wrapper wheel built from that checkout,
+and checks the selected native library before importing the wrapper. Its path
+initialization runs after runner startup and appends to `GITHUB_ENV`.
+
+The JUnit guard checks the actual testcase outcomes against the summary
+counters and requires the complete, unique, exact two-node set. Hidden
+failures, skips, missing nodes, duplicate nodes, unexpected nodes, and malformed
+reports cannot satisfy the proof gate.
+
+Successful hosted proof must retain collection, verbose test output, JUnit,
+guard output, build/install logs, CMake configuration, provider/environment
+identity, package inventory, wrapper wheel, source-archive hashes, and a file
+checksum manifest. Artifact identity includes the repository commit and run
+attempt; `environment.json` also records the repository and run URL.
+
+Local candidate counts and package hashes are recorded in the external I2
+handoff. They do not substitute for the post-commit QWG native run. I2 closes
+only after both workflows succeed on the final commit, the retained native
+artifact verifies exactly two passed tests with zero skips/failures/errors,
+and a fresh source ZIP matches the approved candidate. Refresh the QWG H row
+at that same commit. No future workflow run, artifact hash, or release is
+claimed in this repository document.
 
 ## Authority proof
 
@@ -105,9 +145,15 @@ AdamantineOS remains the final fail-closed policy and execution boundary.
 
 ## Residuals
 
-- Native workflows fetch liboqs and liboqs-python from floating default
-  branches.
-- Workflow actions retain mutable major tags.
+- The I2 native workflow pins both provider source commits and all three
+  action commits. Standard CI still uses mutable action major tags.
+- The runner OS image, apt packages, and transitive build dependencies are
+  not fully immutable. Source pinning is not a bit-reproducible binary claim.
+- Hosted artifacts expire after 90 days. Preserve the verified artifact in
+  the external evidence pack before expiry. The native binary is hashed but
+  not retained; upstream source archive streams are hashed but not retained.
+- The local validation and successful Orchestrator I1 run do not close QWG's
+  own post-commit workflow, artifact, and source-ZIP gate.
 - Standard CI enforces statement, not branch, coverage.
 - Native provider tests use test keys and do not prove production custody or
   HSM assurance.
